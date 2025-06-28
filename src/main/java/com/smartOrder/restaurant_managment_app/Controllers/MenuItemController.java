@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.smartOrder.restaurant_managment_app.Controllers.CustomExceptions.itemNotFoundException;
 import com.smartOrder.restaurant_managment_app.Models.MenuItems;
 import com.smartOrder.restaurant_managment_app.repository.MenuItemRepository;
 

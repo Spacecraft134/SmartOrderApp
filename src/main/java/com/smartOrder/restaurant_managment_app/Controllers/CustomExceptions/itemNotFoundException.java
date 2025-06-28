@@ -1,4 +1,4 @@
-package com.smartOrder.restaurant_managment_app.Controllers;
+package com.smartOrder.restaurant_managment_app.Controllers.CustomExceptions;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
