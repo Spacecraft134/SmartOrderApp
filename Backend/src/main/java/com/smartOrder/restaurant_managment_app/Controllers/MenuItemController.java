@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -38,6 +39,23 @@ public class MenuItemController {
   @GetMapping
   public List<MenuItems> getAllItems() {
     return menuItemRepo.findAll();
+  }
+  
+  @PutMapping("/{id}")
+  public MenuItems updateItem(@PathVariable Long id, @RequestBody MenuItems menuItems) {
+    Optional<MenuItems> requestedItem = menuItemRepo.findById(id);
+    if(requestedItem.isEmpty()) {
+      throw new itemNotFoundException("No item found with id: " + id);
+    }
+    MenuItems item = requestedItem.get();
+    
+   item.setPrice(menuItems.getPrice());
+   item.setCategory(menuItems.getCategory());
+   item.setDescription(menuItems.getDescription());
+   item.setName(menuItems.getName());
+   
+   return menuItemRepo.save(item);
+   
   }
   
   @PostMapping 

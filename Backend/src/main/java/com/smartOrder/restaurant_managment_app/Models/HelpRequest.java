@@ -14,12 +14,12 @@ public class HelpRequest {
   private Long id;
   private String tableNumber;
   private String requestNote;
-  private boolean resolved;
+  private boolean active;
   private LocalDateTime requestTime;
   
   public HelpRequest() {
     this.requestTime = LocalDateTime.now();
-    this.resolved = false;
+    this.active = false;
   }
 
   public Long getId() {
@@ -35,7 +35,7 @@ public class HelpRequest {
   }
 
   public boolean isResolved() {
-    return resolved;
+    return active;
   }
 
   public LocalDateTime getRequestTime() {
@@ -55,7 +55,7 @@ public class HelpRequest {
   }
 
   public void setResolved(boolean resolved) {
-    this.resolved = resolved;
+    this.active = resolved;
   }
 
   public void setRequestTime(LocalDateTime requestTime) {
@@ -65,7 +65,7 @@ public class HelpRequest {
   @Override
   public String toString() {
     return "HelpRequest [id=" + id + ", tableNumber=" + tableNumber + ", requestNote=" + requestNote
-        + ", resolved=" + resolved + ", requestTime=" + requestTime + "]";
+        + ", resolved=" + active + ", requestTime=" + requestTime + "]";
   }
   
   
