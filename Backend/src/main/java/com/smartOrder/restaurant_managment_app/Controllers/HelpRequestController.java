@@ -43,7 +43,7 @@ public class HelpRequestController {
   
   @GetMapping("/all-active-request")
   public List<HelpRequest> getAllActiveHelpRequest() {
-    return helpRequestRepo.findByActiveTrue();
+    return helpRequestRepo.findByResolvedFalse();
   }
   
   //update a request to resolve

@@ -7,5 +7,5 @@ import com.smartOrder.restaurant_managment_app.Models.HelpRequest;
 
 
 public interface HelpRequestRepository extends JpaRepository<HelpRequest, Long> {
-  List<HelpRequest> findByActiveTrue();
+  List<HelpRequest> findByResolvedFalse();
 }

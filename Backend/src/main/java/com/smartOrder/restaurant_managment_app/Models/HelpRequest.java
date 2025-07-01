@@ -13,13 +13,12 @@ public class HelpRequest {
   @GeneratedValue
   private Long id;
   private String tableNumber;
-  private String requestNote;
-  private boolean active;
+  private boolean resolved;
   private LocalDateTime requestTime;
   
   public HelpRequest() {
     this.requestTime = LocalDateTime.now();
-    this.active = false;
+    this.resolved = false;
   }
 
   public Long getId() {
@@ -30,12 +29,9 @@ public class HelpRequest {
     return tableNumber;
   }
 
-  public String getRequestNote() {
-    return requestNote;
-  }
-
+ 
   public boolean isResolved() {
-    return active;
+    return resolved;
   }
 
   public LocalDateTime getRequestTime() {
@@ -50,12 +46,9 @@ public class HelpRequest {
     this.tableNumber = tableNumber;
   }
 
-  public void setRequestNote(String requestNote) {
-    this.requestNote = requestNote;
-  }
-
+ 
   public void setResolved(boolean resolved) {
-    this.active = resolved;
+    this.resolved = resolved;
   }
 
   public void setRequestTime(LocalDateTime requestTime) {
@@ -64,8 +57,8 @@ public class HelpRequest {
 
   @Override
   public String toString() {
-    return "HelpRequest [id=" + id + ", tableNumber=" + tableNumber + ", requestNote=" + requestNote
-        + ", resolved=" + active + ", requestTime=" + requestTime + "]";
+    return "HelpRequest [id=" + id + ", tableNumber=" + tableNumber 
+        + ", resolved=" + resolved + ", requestTime=" + requestTime + "]";
   }
   
   
