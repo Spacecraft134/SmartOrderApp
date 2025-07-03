@@ -1,14 +1,17 @@
 package com.smartOrder.restaurant_managment_app.Models;
 
-
 import java.time.LocalDateTime;
 import java.util.List;
+
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 @Entity
 @Table(name = "orders")
@@ -21,12 +24,16 @@ public class Order {
   private LocalDateTime time;
   private String statusOfOrder;
   
-  @OneToMany(cascade = CascadeType.ALL)
+ 
+  
+  @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+  @JsonManagedReference
   private List<OrderedItems> items;
   
   public Order() {
-    
   }
+  
+ 
 
   public long getId() {
     return id;

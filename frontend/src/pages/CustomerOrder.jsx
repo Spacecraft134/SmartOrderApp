@@ -60,9 +60,9 @@ export function CustomerOrder() {
     if (cart.length === 0) return toast.warning("Cart is empty");
 
     const orderData = {
-      tableID,
-      orderedItems: cart.map((item) => ({
-        menuItemId: item.id,
+      tableNumber: tableID,
+      items: cart.map((item) => ({
+        menuItem: { id: item.id },
         quantity: item.quantity,
         instructions: item.instructions || "",
       })),
