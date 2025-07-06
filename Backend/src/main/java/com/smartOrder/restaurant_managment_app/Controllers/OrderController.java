@@ -80,4 +80,13 @@ public class OrderController {
     
     orderRepo.deleteById(id);
   }
+  @GetMapping("/by-table/{tableNumber}")
+  public ResponseEntity<Order> getLatestOrderByTable(@PathVariable String tableNumber) {
+      // Assuming your repository has a method to find the latest order by tableNumber
+      Optional<Order> latestOrder = orderRepo.findTopByTableNumberOrderByTimeDesc(tableNumber);
+      if (latestOrder.isEmpty()) {
+          return ResponseEntity.notFound().build();
+      }
+      return ResponseEntity.ok(latestOrder.get());
+  }
 }

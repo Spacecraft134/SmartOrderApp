@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.smartOrder.restaurant_managment_app.Controllers.CustomExceptions.NoRequestFoundException;
 import com.smartOrder.restaurant_managment_app.Models.HelpRequest;
+import com.smartOrder.restaurant_managment_app.WebSockets.HelpRequestWebSocketService;
 import com.smartOrder.restaurant_managment_app.repository.HelpRequestRepository;
 
 @RestController
@@ -23,9 +24,18 @@ import com.smartOrder.restaurant_managment_app.repository.HelpRequestRepository;
 public class HelpRequestController {
   
   private HelpRequestRepository helpRequestRepo;
+  private HelpRequestWebSocketService webSocketService;
   
-  public HelpRequestController(HelpRequestRepository helpRequestRepo) {
+  public HelpRequestController(HelpRequestRepository helpRequestRepo,HelpRequestWebSocketService webSocketService ) {
      this.helpRequestRepo = helpRequestRepo;
+     this.webSocketService = webSocketService;
+  }
+  
+ 
+  
+  @GetMapping("/all-active-request")
+  public List<HelpRequest> getAllActiveHelpRequest() {
+    return helpRequestRepo.findByResolvedFalse();
   }
   
   //get request
@@ -39,12 +49,6 @@ public class HelpRequestController {
     
     return request.get();
   }
-  //get all request
-  
-  @GetMapping("/all-active-request")
-  public List<HelpRequest> getAllActiveHelpRequest() {
-    return helpRequestRepo.findByResolvedFalse();
-  }
   
   //update a request to resolve
   @PutMapping("/{id}/resolve")
@@ -53,8 +57,12 @@ public class HelpRequestController {
     if(request.isEmpty()) {
       throw new NoRequestFoundException("No Request found with id: " + id);
     }
-    request.get().setResolved(true);
-    return ResponseEntity.ok(helpRequestRepo.save( request.get()));
+    HelpRequest req = request.get();
+    req.setResolved(false);
+    HelpRequest save = helpRequestRepo.save(req);
+    webSocketService.broadcastHelpRequestUpdate(save);
+    
+    return ResponseEntity.ok(save);
     
   }
   //create a request
@@ -62,7 +70,9 @@ public class HelpRequestController {
   public HelpRequest createHelpRequest(@RequestBody HelpRequest helpRequest) {
     helpRequest.setRequestTime(LocalDateTime.now());
     helpRequest.setResolved(false);
-    return helpRequestRepo.save(helpRequest);
+    HelpRequest save = helpRequestRepo.save(helpRequest);
+    webSocketService.broadcastHelpRequestUpdate(save);
+    return save;
   }
   //delete a request
   @DeleteMapping("/{id}")
