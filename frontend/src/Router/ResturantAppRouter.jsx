@@ -7,6 +7,8 @@ import { WaiterDashboard } from "../pages/WaiterDashboard";
 import { CustomerOrdersList } from "../pages/CustomerViews/CustomerOrdersList";
 import { OrderStatusPage } from "../pages/CustomerViews/CustomerOrderStatus";
 import { CustomerOrder } from "../pages/CustomerViews/CustomerOrder";
+import { TableQRGenerator } from "../pages/QRcode/TableQRGenerator";
+
 export default function ResturantAppRouter() {
   return (
     <BrowserRouter>
@@ -24,6 +26,7 @@ export default function ResturantAppRouter() {
           element={<CustomerOrdersList />}
         />
         <Route path="/order-status/:orderId" element={<OrderStatusPage />} />
+        <Route path="/tableQRs" element={<TableQRGenerator />} />
       </Routes>
     </BrowserRouter>
   );
