@@ -64,7 +64,6 @@ export function CustomerOrder() {
       }
     });
 
-    // Show quick animation feedback
     toast.success(`Added ${item.name} to cart`, {
       icon: "🛒",
       position: "bottom-right",
@@ -92,10 +91,17 @@ export function CustomerOrder() {
     });
   };
 
-  // Submit order and redirect to guest orders page
   const handleSubmitOrder = () => {
-    if (!tableID) return toast.warning("Please enter your table ID");
-    if (cart.length === 0) return toast.warning("Cart is empty");
+    if (!tableID) {
+      toast.warning("Table ID is missing!");
+      return;
+    }
+    if (cart.length === 0) {
+      toast.warning("Your cart is empty!");
+      return;
+    }
+
+    setIsSubmitting(true);
 
     const orderData = {
       tableNumber: tableID,
@@ -106,18 +112,12 @@ export function CustomerOrder() {
       })),
     };
 
-    setIsSubmitting(true);
     axios
       .post("http://localhost:8080/api/orders", orderData)
       .then(() => {
         toast.success("Order Placed Successfully!", {
           position: "top-center",
           autoClose: 2000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          progress: undefined,
         });
         setCart([]);
         setIsCartOpen(false);
@@ -147,11 +147,18 @@ export function CustomerOrder() {
       .catch(() => toast.error("Failed to send help request"));
   };
 
-  // Calculate cart total
   const cartTotal = cart.reduce(
     (sum, item) => sum + item.quantity * parseFloat(item.price),
     0
   );
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tableId = params.get("table");
+    if (tableId) {
+      setTableID(tableId);
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -167,7 +174,6 @@ export function CustomerOrder() {
         theme="colored"
       />
 
-      {/* Floating Cart Button */}
       <motion.button
         onClick={() => setIsCartOpen(true)}
         className="fixed right-6 bottom-6 z-40 bg-indigo-600 text-white p-4 rounded-full shadow-xl hover:bg-indigo-700 transition-all flex items-center justify-center"
@@ -182,7 +188,6 @@ export function CustomerOrder() {
         )}
       </motion.button>
 
-      {/* Help Button */}
       <motion.button
         onClick={handleHelpRequest}
         className="fixed left-6 bottom-6 z-40 bg-amber-500 text-white p-4 rounded-full shadow-xl hover:bg-amber-600 transition-all flex items-center justify-center"
@@ -193,7 +198,6 @@ export function CustomerOrder() {
       </motion.button>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
             <h1 className="text-4xl font-extrabold text-gray-900 mb-2">
@@ -208,9 +212,8 @@ export function CustomerOrder() {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Enter Table Number"
                 value={tableID}
-                onChange={(e) => setTableID(e.target.value)}
+                readOnly
                 className="w-full px-5 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200"
               />
               {tableID && (
@@ -225,7 +228,6 @@ export function CustomerOrder() {
           </div>
         </div>
 
-        {/* Category Tabs */}
         <div className="mb-8">
           <div className="flex space-x-2 overflow-x-auto pb-2 scrollbar-hide">
             {uniqueCategory.map((category) => (
@@ -244,7 +246,6 @@ export function CustomerOrder() {
           </div>
         </div>
 
-        {/* Menu Items */}
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {[...Array(8)].map((_, i) => (
@@ -311,7 +312,6 @@ export function CustomerOrder() {
         )}
       </div>
 
-      {/* Cart Drawer */}
       <AnimatePresence>
         {isCartOpen && (
           <>

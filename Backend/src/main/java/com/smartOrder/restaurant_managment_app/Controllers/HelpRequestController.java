@@ -58,7 +58,7 @@ public class HelpRequestController {
       throw new NoRequestFoundException("No Request found with id: " + id);
     }
     HelpRequest req = request.get();
-    req.setResolved(false);
+    req.setResolved(true);
     HelpRequest save = helpRequestRepo.save(req);
     webSocketService.broadcastHelpRequestUpdate(save);
     

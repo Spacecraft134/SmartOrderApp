@@ -1,33 +1,34 @@
 package com.smartOrder.restaurant_managment_app.Models;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
 public class OrderedItems {
-  @Id
-  @GeneratedValue
-  private long id;
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-  @ManyToOne
-  @JoinColumn(name = "menu_item_id")
-  private MenuItems menuItem;
+    private int quantity;
+    private String instructions;
 
-  private int quantity;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "menu_item_id")
+    private MenuItems menuItem;
 
-  private String instructions;
+    @JsonBackReference
+    @ManyToOne
+    @JoinColumn(name = "order_id")
+    private Order order;
 
-  @ManyToOne
-  @JoinColumn(name = "order_id")
-  @JsonBackReference
-  private Order order;
-
-  // Getters and setters
 
   public long getId() {
     return id;
