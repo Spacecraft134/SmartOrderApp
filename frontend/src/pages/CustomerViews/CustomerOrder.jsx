@@ -17,12 +17,15 @@ export function CustomerOrder() {
   const navigate = useNavigate();
 
   const [tableID, setTableID] = useState(tableNumberParam || "");
+  const [isTableIdLocked, setIsTableIdLocked] = useState(!!tableNumberParam);
   const [menuItems, setMenuItems] = useState([]);
   const [cart, setCart] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [helpRequestSending, setHelpRequestSending] = useState(false);
+  const [helpRequested, setHelpRequested] = useState(false);
 
   // Load menu items once
   useEffect(() => {
@@ -133,6 +136,9 @@ export function CustomerOrder() {
       toast.warning("Please enter your Table ID to request help!");
       return;
     }
+    if (helpRequestSending) return; // Prevent multiple clicks
+
+    setHelpRequestSending(true);
     axios
       .post("http://localhost:8080/api/help-requests", {
         tableNumber: tableID,
@@ -143,20 +149,24 @@ export function CustomerOrder() {
           position: "top-center",
           autoClose: 3000,
         });
+        setHelpRequested(true);
+        setTimeout(() => setHelpRequested(false), 30000); // Reset after 30 seconds
       })
-      .catch(() => toast.error("Failed to send help request"));
+      .catch(() => toast.error("Failed to send help request"))
+      .finally(() => setHelpRequestSending(false));
   };
 
-  const cartTotal = cart.reduce(
-    (sum, item) => sum + item.quantity * parseFloat(item.price),
-    0
-  );
+  const cartTotal = cart.reduce((sum, item) => {
+    const price = parseFloat(item.price);
+    return sum + (isNaN(price) ? 0 : price) * item.quantity;
+  }, 0);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tableId = params.get("table");
     if (tableId) {
       setTableID(tableId);
+      setIsTableIdLocked(true);
     }
   }, []);
 
@@ -190,9 +200,16 @@ export function CustomerOrder() {
 
       <motion.button
         onClick={handleHelpRequest}
-        className="fixed left-6 bottom-6 z-40 bg-amber-500 text-white p-4 rounded-full shadow-xl hover:bg-amber-600 transition-all flex items-center justify-center"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        disabled={helpRequestSending || helpRequested}
+        className={`fixed left-6 bottom-6 z-40 p-4 rounded-full shadow-xl transition-all flex items-center justify-center ${
+          helpRequestSending
+            ? "bg-gray-400 cursor-not-allowed text-white"
+            : helpRequested
+            ? "bg-green-600 text-white cursor-default"
+            : "bg-amber-500 text-white hover:bg-amber-600"
+        }`}
+        whileHover={{ scale: helpRequestSending || helpRequested ? 1 : 1.05 }}
+        whileTap={{ scale: helpRequestSending || helpRequested ? 1 : 0.95 }}
       >
         <FiHelpCircle className="text-xl" />
       </motion.button>
@@ -213,13 +230,22 @@ export function CustomerOrder() {
               <input
                 type="text"
                 value={tableID}
-                readOnly
-                className="w-full px-5 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200"
+                readOnly={isTableIdLocked}
+                onChange={(e) => {
+                  if (!isTableIdLocked) setTableID(e.target.value);
+                }}
+                placeholder="Enter your Table ID"
+                className={`w-full px-5 py-3 rounded-lg border-2 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 ${
+                  isTableIdLocked
+                    ? "border-gray-300 bg-gray-100 cursor-not-allowed"
+                    : "border-gray-200 bg-white"
+                }`}
               />
-              {tableID && (
+              {!isTableIdLocked && tableID && (
                 <button
                   onClick={() => setTableID("")}
                   className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                  aria-label="Clear Table ID"
                 >
                   <FiX />
                 </button>
@@ -228,6 +254,7 @@ export function CustomerOrder() {
           </div>
         </div>
 
+        {/* Category filter */}
         <div className="mb-8">
           <div className="flex space-x-2 overflow-x-auto pb-2 scrollbar-hide">
             {uniqueCategory.map((category) => (
@@ -246,6 +273,7 @@ export function CustomerOrder() {
           </div>
         </div>
 
+        {/* Menu grid */}
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {[...Array(8)].map((_, i) => (
@@ -312,6 +340,7 @@ export function CustomerOrder() {
         )}
       </div>
 
+      {/* Cart Drawer */}
       <AnimatePresence>
         {isCartOpen && (
           <>

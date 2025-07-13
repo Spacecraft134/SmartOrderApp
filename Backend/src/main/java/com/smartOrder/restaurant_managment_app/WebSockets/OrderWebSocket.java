@@ -2,17 +2,61 @@ package com.smartOrder.restaurant_managment_app.WebSockets;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
+
 import com.smartOrder.restaurant_managment_app.Models.Order;
+import com.smartOrder.restaurant_managment_app.Controllers.OrderController.OrderEvent;
 
-@Service
+@Component
 public class OrderWebSocket {
-  
-  @Autowired
-  private SimpMessagingTemplate messagingTemplate;
 
-  // Renamed to sendOrderUpdate to match controller calls
-  public void sendOrderUpdate(Order order) {
-      messagingTemplate.convertAndSend("/topic/orders", order);
-  }
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
+
+    public void sendOrderUpdateToTable(Order order) {
+        // Send to specific table's topic (for customer view)
+        messagingTemplate.convertAndSend(
+            "/topic/orders/" + order.getTableNumber(), 
+            new OrderEvent("UPDATE", order)
+        );
+    }
+
+    public void sendOrderUpdateToAll(Order order, String eventType) {
+        // Send to generic orders topic (for waiter/kitchen dashboards)
+        messagingTemplate.convertAndSend(
+            "/topic/orders", 
+            new OrderEvent(eventType, order)
+        );
+        
+        // If order is being deleted or completed, also notify the specific table
+        if ("DELETE".equals(eventType)) {
+            messagingTemplate.convertAndSend(
+                "/topic/orders/" + order.getTableNumber(),
+                new OrderEvent("DELETE", order)
+            );
+        }
+    }
+
+    public void notifyOrderStatusChange(Order order, String previousStatus) {
+        String eventType = "UPDATE";
+        
+        // Special handling for status transitions
+        if ("WAITING_FOR_CONFIRMATION".equals(previousStatus) && 
+            "IN_PROGRESS".equals(order.getStatusOfOrder())) {
+            // For waiter dashboard - treat as delete since waiter shouldn't see it anymore
+            sendOrderUpdateToAll(order, "DELETE");
+        } 
+        else if ("IN_PROGRESS".equals(previousStatus) && 
+                 "READY".equals(order.getStatusOfOrder())) {
+            // For kitchen dashboard - treat as delete since kitchen shouldn't see it anymore
+            sendOrderUpdateToAll(order, "DELETE");
+        } 
+        else {
+            // Normal update
+            sendOrderUpdateToAll(order, eventType);
+        }
+        
+        // Always update the customer view
+        sendOrderUpdateToTable(order);
+    }
 }

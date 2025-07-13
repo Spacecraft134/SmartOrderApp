@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,10 +14,7 @@ import {
   FiRotateCw,
 } from "react-icons/fi";
 
-// Cache for menu items by id
 const menuItemCache = new Map();
-
-// To avoid duplicate toasts by order id
 const activeToasts = new Set();
 
 const processOrderData = (order) => {
@@ -30,7 +27,6 @@ const processOrderData = (order) => {
         ? menuItemCache.get(item.menuItem.id)
         : null;
 
-      // Use cached menu item or fallback to item.menuItem or placeholder
       const menuItem = cachedMenuItem ||
         item.menuItem || {
           id: -1,
@@ -60,28 +56,20 @@ export function KitchenDashboard() {
   const clientRef = useRef(null);
   const initializedRef = useRef(false);
 
-  // Store timers to clean them on unmount or re-complete
-  const deletionTimersRef = useRef(new Map());
-
-  // Fetch orders once or on refresh
   const fetchOrders = async () => {
     try {
       setIsLoading(true);
       const response = await axios.get("http://localhost:8080/api/orders", {
-        params: { _: Date.now() },
-        timeout: 5000,
+        params: { status: "IN_PROGRESS" },
       });
-      const processed = Array.isArray(response.data)
-        ? response.data.map(processOrderData).filter(Boolean)
-        : [processOrderData(response.data)].filter(Boolean);
+      const processed = response.data
+        .map(processOrderData)
+        .filter(Boolean)
+        .filter((order) => order.statusOfOrder === "IN_PROGRESS");
       setOrders(processed);
       initializedRef.current = true;
     } catch (error) {
-      if (!activeToasts.has("fetch-error")) {
-        toast.error("Connection issue. Retrying...", { autoClose: 3000 });
-        activeToasts.add("fetch-error");
-        setTimeout(() => activeToasts.delete("fetch-error"), 3000);
-      }
+      toast.error("Failed to load orders");
     } finally {
       setIsLoading(false);
     }
@@ -90,33 +78,41 @@ export function KitchenDashboard() {
   useEffect(() => {
     fetchOrders();
 
-    // Setup WebSocket
     const socket = new SockJS("http://localhost:8080/ws");
     const stompClient = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
       debug: (str) => console.debug(str),
-
       onConnect: () => {
+        console.log("WebSocket connected to /topic/orders");
         stompClient.subscribe("/topic/orders", (message) => {
-          if (!initializedRef.current) return;
-
           try {
-            const newOrder = processOrderData(JSON.parse(message.body));
-            if (!newOrder) return;
+            console.log("Received order update:", message.body);
+            const orderEvent = JSON.parse(message.body);
+            const order = processOrderData(orderEvent.order);
+            const eventType = orderEvent.eventType;
+
+            if (!order) return;
 
             setOrders((prev) => {
-              const existingIndex = prev.findIndex((o) => o.id === newOrder.id);
+              // Remove order if DELETE event or status changed to READY
+              if (eventType === "DELETE" || order.statusOfOrder === "READY") {
+                return prev.filter((o) => o.id !== order.id);
+              }
 
+              // Only process IN_PROGRESS orders
+              if (order.statusOfOrder !== "IN_PROGRESS") {
+                return prev;
+              }
+
+              // Update existing order or add new one
+              const existingIndex = prev.findIndex((o) => o.id === order.id);
               if (existingIndex >= 0) {
-                // Update existing order, preserve cached menuItems
                 return prev.map((o, i) =>
                   i === existingIndex
                     ? {
-                        ...newOrder,
-                        items: newOrder.items.map((item, idx) => ({
+                        ...order,
+                        items: order.items.map((item, idx) => ({
                           ...item,
                           menuItem:
                             prev[existingIndex].items[idx]?.menuItem ||
@@ -127,88 +123,48 @@ export function KitchenDashboard() {
                 );
               }
 
-              // New order toast (without sound)
-              if (!activeToasts.has(`new-${newOrder.id}`)) {
-                toast.success(`New order from Table #${newOrder.tableNumber}`, {
-                  autoClose: 2000,
-                });
-                activeToasts.add(`new-${newOrder.id}`);
-                setTimeout(
-                  () => activeToasts.delete(`new-${newOrder.id}`),
-                  2000
-                );
+              // New order notification
+              if (!activeToasts.has(`new-${order.id}`)) {
+                toast.success(`New order from Table #${order.tableNumber}`);
+                activeToasts.add(`new-${order.id}`);
+                setTimeout(() => activeToasts.delete(`new-${order.id}`), 2000);
               }
 
-              return [...prev, newOrder];
+              return [...prev, order];
             });
           } catch (error) {
-            console.error("WebSocket parse error:", error);
+            console.error("Failed to process WebSocket message:", error);
           }
         });
       },
-
-      onDisconnect: () => {
-        if (!activeToasts.has("disconnect")) {
-          toast.warning("Reconnecting...", { autoClose: 2000 });
-          activeToasts.add("disconnect");
-          setTimeout(() => activeToasts.delete("disconnect"), 2000);
-        }
+      onStompError: (frame) => {
+        console.error("WebSocket error:", frame);
+        toast.error("Connection error - attempting to reconnect...");
+      },
+      onWebSocketClose: () => {
+        console.log("WebSocket connection closed");
       },
     });
 
     stompClient.activate();
     clientRef.current = stompClient;
 
-    // Cleanup on unmount
     return () => {
       if (clientRef.current?.active) {
         clientRef.current.deactivate();
+        console.log("WebSocket connection cleaned up");
       }
-      // Clear all pending timers to avoid memory leaks
-      deletionTimersRef.current.forEach((timer) => clearTimeout(timer));
-      deletionTimersRef.current.clear();
-      activeToasts.clear();
     };
   }, []);
 
-  // Complete order handler with 5min delayed removal
-  const handleCompleteOrder = async (id) => {
-    try {
-      await axios.put(
-        `http://localhost:8080/api/orders/${id}/status`,
-        { status: "Completed" },
-        { timeout: 3000 }
-      );
-
-      setOrders((prev) =>
-        prev.map((order) =>
-          order.id === id ? { ...order, statusOfOrder: "Completed" } : order
-        )
-      );
-
-      if (!activeToasts.has(`complete-${id}`)) {
-        toast.success("Order completed!", { autoClose: 2000 });
-        activeToasts.add(`complete-${id}`);
-        setTimeout(() => activeToasts.delete(`complete-${id}`), 2000);
-      }
-
-      // Clear existing timer if any, then schedule removal
-      if (deletionTimersRef.current.has(id)) {
-        clearTimeout(deletionTimersRef.current.get(id));
-      }
-      const timer = setTimeout(() => {
+  const markOrderReady = (id) => {
+    axios
+      .put(`http://localhost:8080/api/orders/${id}/ready`)
+      .then(() => {
+        toast.success("Order marked READY");
         setOrders((prev) => prev.filter((order) => order.id !== id));
-        deletionTimersRef.current.delete(id);
-      }, 300000); // 5 minutes
-
-      deletionTimersRef.current.set(id, timer);
-    } catch (error) {
-      if (!activeToasts.has(`complete-error-${id}`)) {
-        toast.error("Failed to complete order", { autoClose: 2000 });
-        activeToasts.add(`complete-error-${id}`);
-        setTimeout(() => activeToasts.delete(`complete-error-${id}`), 2000);
-      }
-    }
+      })
+      .catch(() => toast.error("Failed to mark order READY"));
   };
 
   const toggleOrderExpand = (id) => {
@@ -221,8 +177,6 @@ export function KitchenDashboard() {
     if (diffMinutes < 60) return `${diffMinutes}m ago`;
     return `${Math.floor(diffMinutes / 60)}h ${diffMinutes % 60}m ago`;
   };
-
-  const activeOrders = orders.filter((o) => o.statusOfOrder !== "Completed");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -237,9 +191,7 @@ export function KitchenDashboard() {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
               <FiClock className="text-blue-500" />
-              {isLoading
-                ? "Loading..."
-                : `Active Orders (${activeOrders.length})`}
+              {isLoading ? "Loading..." : `Active Orders (${orders.length})`}
             </h2>
             <div className="flex gap-3">
               <button
@@ -260,13 +212,13 @@ export function KitchenDashboard() {
             <div className="bg-gray-50 p-8 rounded-lg text-center">
               <p className="text-gray-500">Loading orders...</p>
             </div>
-          ) : activeOrders.length === 0 ? (
+          ) : orders.length === 0 ? (
             <div className="bg-gray-50 p-8 rounded-lg text-center">
               <p className="text-gray-500">No active orders</p>
             </div>
           ) : (
             <div className="space-y-4">
-              {activeOrders.map((order) => {
+              {orders.map((order) => {
                 const isUrgent = order.items?.some((item) =>
                   item.instructions?.toLowerCase().includes("urgent")
                 );
@@ -304,10 +256,10 @@ export function KitchenDashboard() {
                         </div>
                         <div className="flex gap-2">
                           <button
-                            onClick={() => handleCompleteOrder(order.id)}
+                            onClick={() => markOrderReady(order.id)}
                             className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
                           >
-                            <FiCheck size={14} /> Complete
+                            <FiCheck size={14} /> Ready
                           </button>
                           <button
                             onClick={() => toggleOrderExpand(order.id)}

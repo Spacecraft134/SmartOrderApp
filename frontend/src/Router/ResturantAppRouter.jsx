@@ -5,7 +5,7 @@ import HomeScreen from "../pages/HomeScreen";
 import { KitchenDashboard } from "../pages/KitchenDashboard";
 import { WaiterDashboard } from "../pages/WaiterDashboard";
 import { CustomerOrdersList } from "../pages/CustomerViews/CustomerOrdersList";
-import { OrderStatusPage } from "../pages/CustomerViews/CustomerOrderStatus";
+
 import { CustomerOrder } from "../pages/CustomerViews/CustomerOrder";
 import { TableQRGenerator } from "../pages/QRcode/TableQRGenerator";
 
@@ -25,7 +25,7 @@ export default function ResturantAppRouter() {
           path="/guest-orders/:tableNumber"
           element={<CustomerOrdersList />}
         />
-        <Route path="/order-status/:orderId" element={<OrderStatusPage />} />
+
         <Route path="/tableQRs" element={<TableQRGenerator />} />
       </Routes>
     </BrowserRouter>

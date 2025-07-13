@@ -9,6 +9,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
   
   List<Order> findByStatusOfOrderNotOrderByTimeAsc(String status);
 
-  Optional<Order> findTopByTableNumberOrderByTimeDesc(String tableNumber);
+  List<Order> findByTableNumberOrderByTimeDesc(String tableNumber);
+  
+  List<Order> findByStatusOfOrder(String statusOfOrder);
 
 }

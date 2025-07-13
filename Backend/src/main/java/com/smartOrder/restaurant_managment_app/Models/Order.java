@@ -24,58 +24,24 @@ public class Order {
   private LocalDateTime time;
   private String statusOfOrder;
   
- 
-  
   @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
   @JsonManagedReference
   private List<OrderedItems> items;
 
+  public Order() {}
 
-  
-  public Order() {
-  }
-  
- 
+  // Getters and setters
+  public long getId() { return id; }
+  public String getTableNumber() { return tableNumber; }
+  public LocalDateTime getTime() { return time; }
+  public String getStatusOfOrder() { return statusOfOrder; }
+  public List<OrderedItems> getItems() { return items; }
 
-  public long getId() {
-    return id;
-  }
-
-  public String getTableNumber() {
-    return tableNumber;
-  }
-
-  public LocalDateTime getTime() {
-    return time;
-  }
-
-  public String getStatusOfOrder() {
-    return statusOfOrder;
-  }
-
-  public List<OrderedItems> getItems() {
-    return items;
-  }
-
-  public void setId(long id) {
-    this.id = id;
-  }
-
-  public void setTableNumber(String tableNumber) {
-    this.tableNumber = tableNumber;
-  }
-
-  public void setTime(LocalDateTime time) {
-    this.time = time;
-  }
-
-  public void setStatusOfOrder(String statusOfOrder) {
-    this.statusOfOrder = statusOfOrder;
-  }
-
-  public void setItems(List<OrderedItems> items) {
-    this.items = items;
-  }
+  public void setId(long id) { this.id = id; }
+  public void setTableNumber(String tableNumber) { this.tableNumber = tableNumber; }
+  public void setTime(LocalDateTime time) { this.time = time; }
+  public void setStatusOfOrder(String statusOfOrder) { this.statusOfOrder = statusOfOrder; }
+  public void setItems(List<OrderedItems> items) { this.items = items; }
 
   @Override
   public String toString() {
