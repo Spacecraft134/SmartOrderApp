@@ -36,27 +36,11 @@ public class OrderWebSocket {
             );
         }
     }
-
     public void notifyOrderStatusChange(Order order, String previousStatus) {
-        String eventType = "UPDATE";
-        
-        // Special handling for status transitions
-        if ("WAITING_FOR_CONFIRMATION".equals(previousStatus) && 
-            "IN_PROGRESS".equals(order.getStatusOfOrder())) {
-            // For waiter dashboard - treat as delete since waiter shouldn't see it anymore
-            sendOrderUpdateToAll(order, "DELETE");
-        } 
-        else if ("IN_PROGRESS".equals(previousStatus) && 
-                 "READY".equals(order.getStatusOfOrder())) {
-            // For kitchen dashboard - treat as delete since kitchen shouldn't see it anymore
-            sendOrderUpdateToAll(order, "DELETE");
-        } 
-        else {
-            // Normal update
-            sendOrderUpdateToAll(order, eventType);
-        }
-        
-        // Always update the customer view
-        sendOrderUpdateToTable(order);
-    }
+      // Always send an UPDATE event with the current order status
+      sendOrderUpdateToAll(order, "UPDATE");
+
+      // Also update the specific table for customers
+      sendOrderUpdateToTable(order);
+  }
 }

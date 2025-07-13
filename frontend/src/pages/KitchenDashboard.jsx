@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { motion, AnimatePresence } from "framer-motion";
+import notificationSound from "../assets/ding-101492.mp3";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import axios from "axios";
@@ -15,7 +16,6 @@ import {
 } from "react-icons/fi";
 
 const menuItemCache = new Map();
-const activeToasts = new Set();
 
 const processOrderData = (order) => {
   if (!order) return null;
@@ -54,7 +54,29 @@ export function KitchenDashboard() {
   const [expandedOrders, setExpandedOrders] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const clientRef = useRef(null);
-  const initializedRef = useRef(false);
+
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    audioRef.current = new Audio(notificationSound);
+    audioRef.current.load();
+
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  const playNotification = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => {
+        toast.info("New order received!");
+      });
+    }
+  };
 
   const fetchOrders = async () => {
     try {
@@ -67,14 +89,13 @@ export function KitchenDashboard() {
         .filter(Boolean)
         .filter((order) => order.statusOfOrder === "IN_PROGRESS");
       setOrders(processed);
-      initializedRef.current = true;
-    } catch (error) {
+    } catch {
       toast.error("Failed to load orders");
     } finally {
       setIsLoading(false);
     }
   };
-
+  const playedSoundOrders = useRef(new Set());
   useEffect(() => {
     fetchOrders();
 
@@ -82,55 +103,35 @@ export function KitchenDashboard() {
     const stompClient = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
-      debug: (str) => console.debug(str),
       onConnect: () => {
-        console.log("WebSocket connected to /topic/orders");
         stompClient.subscribe("/topic/orders", (message) => {
+          if (!message?.body) return;
+
           try {
-            console.log("Received order update:", message.body);
             const orderEvent = JSON.parse(message.body);
             const order = processOrderData(orderEvent.order);
             const eventType = orderEvent.eventType;
 
-            if (!order) return;
-
             setOrders((prev) => {
-              // Remove order if DELETE event or status changed to READY
-              if (eventType === "DELETE" || order.statusOfOrder === "READY") {
+              if (
+                eventType === "DELETE" ||
+                order.statusOfOrder !== "IN_PROGRESS"
+              ) {
                 return prev.filter((o) => o.id !== order.id);
               }
 
-              // Only process IN_PROGRESS orders
-              if (order.statusOfOrder !== "IN_PROGRESS") {
-                return prev;
-              }
-
-              // Update existing order or add new one
               const existingIndex = prev.findIndex((o) => o.id === order.id);
               if (existingIndex >= 0) {
-                return prev.map((o, i) =>
-                  i === existingIndex
-                    ? {
-                        ...order,
-                        items: order.items.map((item, idx) => ({
-                          ...item,
-                          menuItem:
-                            prev[existingIndex].items[idx]?.menuItem ||
-                            item.menuItem,
-                        })),
-                      }
-                    : o
-                );
+                const updated = [...prev];
+                updated[existingIndex] = order;
+                return updated;
+              } else {
+                if (!playedSoundOrders.current.has(order.id)) {
+                  playNotification();
+                  playedSoundOrders.current.add(order.id);
+                }
+                return [...prev, order];
               }
-
-              // New order notification
-              if (!activeToasts.has(`new-${order.id}`)) {
-                toast.success(`New order from Table #${order.tableNumber}`);
-                activeToasts.add(`new-${order.id}`);
-                setTimeout(() => activeToasts.delete(`new-${order.id}`), 2000);
-              }
-
-              return [...prev, order];
             });
           } catch (error) {
             console.error("Failed to process WebSocket message:", error);
@@ -139,7 +140,7 @@ export function KitchenDashboard() {
       },
       onStompError: (frame) => {
         console.error("WebSocket error:", frame);
-        toast.error("Connection error - attempting to reconnect...");
+        toast.error("WebSocket connection error. Trying to reconnect...");
       },
       onWebSocketClose: () => {
         console.log("WebSocket connection closed");
@@ -150,10 +151,8 @@ export function KitchenDashboard() {
     clientRef.current = stompClient;
 
     return () => {
-      if (clientRef.current?.active) {
-        clientRef.current.deactivate();
-        console.log("WebSocket connection cleaned up");
-      }
+      clientRef.current?.deactivate();
+      console.log("WebSocket connection cleaned up");
     };
   }, []);
 
@@ -193,19 +192,17 @@ export function KitchenDashboard() {
               <FiClock className="text-blue-500" />
               {isLoading ? "Loading..." : `Active Orders (${orders.length})`}
             </h2>
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  menuItemCache.clear();
-                  fetchOrders();
-                }}
-                className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
-                disabled={isLoading}
-              >
-                <FiRotateCw className={isLoading ? "animate-spin" : ""} />
-                Refresh
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                menuItemCache.clear();
+                fetchOrders();
+              }}
+              className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
+              disabled={isLoading}
+            >
+              <FiRotateCw className={isLoading ? "animate-spin" : ""} />
+              Refresh
+            </button>
           </div>
 
           {isLoading ? (
@@ -329,7 +326,7 @@ export function KitchenDashboard() {
 
       <ToastContainer
         position="top-center"
-        autoClose={2000}
+        autoClose={3000}
         hideProgressBar={false}
         newestOnTop={true}
         closeOnClick
