@@ -136,9 +136,9 @@ public class OrderController {
         Order order = orderWithMatchingId.get();
         String previousStatus = order.getStatusOfOrder();
         order.setStatusOfOrder("READY");
+        order.setReadyTime(LocalDateTime.now());    
         Order saved = orderRepo.save(order);
-        
-        // Use the new notification method
+       
         orderWebSocket.notifyOrderStatusChange(saved, previousStatus);
         return ResponseEntity.ok(saved);
     }
