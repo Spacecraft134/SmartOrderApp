@@ -148,12 +148,6 @@ export default function MenuManager() {
       <ToastContainer position="top-center" autoClose={3000} />
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Menu Manager</h1>
-        <button
-          onClick={() => navigate("/")}
-          className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium px-4 py-2 rounded-md"
-        >
-          Home
-        </button>
       </div>
 
       <form

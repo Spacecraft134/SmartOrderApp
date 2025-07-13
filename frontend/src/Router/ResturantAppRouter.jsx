@@ -8,6 +8,9 @@ import { CustomerOrdersList } from "../pages/CustomerViews/CustomerOrdersList";
 
 import { CustomerOrder } from "../pages/CustomerViews/CustomerOrder";
 import { TableQRGenerator } from "../pages/QRcode/TableQRGenerator";
+import { AdminLayout } from "../pages/AdminViews/AdminLayout";
+import { AdminDashboard } from "../pages/AdminViews/AdminDashboard";
+import { AnnouncementBannerEditor } from "../pages/AdminViews/AnnouncementBannerEditor";
 
 export default function ResturantAppRouter() {
   return (
@@ -27,6 +30,13 @@ export default function ResturantAppRouter() {
         />
 
         <Route path="/tableQRs" element={<TableQRGenerator />} />
+
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<AdminDashboard />} />
+          <Route path="menu" element={<MenuManager />} />
+          <Route path="QRCode" element={<TableQRGenerator />} />
+          <Route path="banner" element={<AnnouncementBannerEditor />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   );

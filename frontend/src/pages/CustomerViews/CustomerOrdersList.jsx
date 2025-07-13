@@ -65,8 +65,11 @@ export function CustomerOrdersList() {
               return merged.sort((a, b) => new Date(b.time) - new Date(a.time));
             });
 
-            if (eventType === "UPDATE") {
-              toast.info(`Order update for your table!`);
+            if (
+              eventType === "UPDATE" &&
+              updatedOrder.statusOfOrder === "READY"
+            ) {
+              toast.info(`Your order is ready for serving!`);
             }
           } catch (err) {
             console.error("CustomerOrdersList WebSocket error:", err);
