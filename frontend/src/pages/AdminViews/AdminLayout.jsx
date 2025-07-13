@@ -24,10 +24,16 @@ export function AdminLayout() {
             QR Code Generator
           </Link>
           <Link
-            to="/admin/banner"
+            to="/admin/poster"
             className="block hover:bg-blue-800 p-2 rounded"
           >
-            Announcement Banner Editor
+            Poster Editor
+          </Link>
+          <Link
+            to="/admin/upsell"
+            className="block hover:bg-blue-800 p-2 rounded"
+          >
+            Upsell Setting
           </Link>
         </nav>
       </aside>

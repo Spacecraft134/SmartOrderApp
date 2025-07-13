@@ -10,7 +10,8 @@ import { CustomerOrder } from "../pages/CustomerViews/CustomerOrder";
 import { TableQRGenerator } from "../pages/QRcode/TableQRGenerator";
 import { AdminLayout } from "../pages/AdminViews/AdminLayout";
 import { AdminDashboard } from "../pages/AdminViews/AdminDashboard";
-import { AnnouncementBannerEditor } from "../pages/AdminViews/AnnouncementBannerEditor";
+import { PosterEditor } from "../pages/AdminViews/PosterEditor";
+import { UpsellSettings } from "../pages/AdminViews/UpsellSettings";
 
 export default function ResturantAppRouter() {
   return (
@@ -35,7 +36,8 @@ export default function ResturantAppRouter() {
           <Route index element={<AdminDashboard />} />
           <Route path="menu" element={<MenuManager />} />
           <Route path="QRCode" element={<TableQRGenerator />} />
-          <Route path="banner" element={<AnnouncementBannerEditor />} />
+          <Route path="poster" element={<PosterEditor />} />
+          <Route path="upsell" element={<UpsellSettings />} />
         </Route>
       </Routes>
     </BrowserRouter>
