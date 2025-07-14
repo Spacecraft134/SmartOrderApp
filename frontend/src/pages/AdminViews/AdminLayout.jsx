@@ -35,6 +35,12 @@ export function AdminLayout() {
           >
             Upsell Setting
           </Link>
+          <Link
+            to="/admin/setting"
+            className="block hover:bg-blue-800 p-2 rounded"
+          >
+            Admin Setting
+          </Link>
         </nav>
       </aside>
 
