@@ -183,25 +183,6 @@ export function AdminDashboard() {
     { name: "Truffle Fries", orders: 8, margin: 5, trend: "down" },
   ];
 
-  // NEW FEATURE 3: Competitor Price Comparison
-  const competitorPrices = [
-    { item: "Margherita Pizza", yourPrice: 14.5, avgCompetitor: 12.8 },
-    { item: "Butter Chicken", yourPrice: 16.9, avgCompetitor: 15.2 },
-    { item: "Garlic Naan", yourPrice: 3.5, avgCompetitor: 2.9 },
-    { item: "Chicken Wings", yourPrice: 11.5, avgCompetitor: 10.8 },
-  ];
-
-  // NEW FEATURE 4: "What If?" Profit Simulator
-  const [priceAdjustment, setPriceAdjustment] = useState(0);
-  const [volumeImpact, setVolumeImpact] = useState(0);
-
-  const calculateProfitImpact = () => {
-    const baseProfit = 2450;
-    const adjustedProfit =
-      baseProfit * (1 + priceAdjustment / 100) * (1 - volumeImpact / 100);
-    return adjustedProfit.toFixed(2);
-  };
-
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
@@ -354,101 +335,6 @@ export function AdminDashboard() {
           </div>
         </div>
       </div>
-
-      {/* Competitive Analysis */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Competitor Price Comparison */}
-        <div className="bg-white rounded-xl shadow-sm p-5">
-          <h2 className="text-lg font-semibold mb-4 flex items-center">
-            <FiBarChart2 className="mr-2" /> Competitor Price Comparison
-          </h2>
-          <div className="space-y-4">
-            {competitorPrices.map((item, index) => {
-              const diff = (
-                ((item.yourPrice - item.avgCompetitor) / item.avgCompetitor) *
-                100
-              ).toFixed(1);
-              return (
-                <div key={index} className="flex justify-between items-center">
-                  <div className="w-1/3">
-                    <p className="font-medium truncate">{item.item}</p>
-                  </div>
-                  <div className="w-1/3 text-center">
-                    <p className="text-sm">${item.yourPrice.toFixed(2)}</p>
-                  </div>
-                  <div className="w-1/3 text-right">
-                    <p
-                      className={`text-sm ${
-                        diff > 0 ? "text-red-500" : "text-green-500"
-                      }`}
-                    >
-                      {diff > 0 ? `+${diff}%` : `${diff}%`} vs market
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="mt-4 p-3 bg-yellow-50 rounded-lg">
-            <p className="text-sm text-yellow-800">
-              <span className="font-medium">Insight:</span> Your Margherita
-              Pizza is 13% above market average
-            </p>
-          </div>
-        </div>
-
-        {/* "What If?" Profit Simulator */}
-        <div className="bg-white rounded-xl shadow-sm p-5">
-          <h2 className="text-lg font-semibold mb-4 flex items-center">
-            <FiTarget className="mr-2" /> Profit Simulator
-          </h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Price Adjustment: {priceAdjustment}%
-              </label>
-              <input
-                type="range"
-                min="-20"
-                max="20"
-                value={priceAdjustment}
-                onChange={(e) => setPriceAdjustment(parseInt(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Volume Impact: {volumeImpact}%
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="30"
-                value={volumeImpact}
-                onChange={(e) => setVolumeImpact(parseInt(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-              />
-            </div>
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-medium">Projected Profit Impact</h3>
-              <p
-                className={`text-2xl mt-2 ${
-                  calculateProfitImpact() > 2450
-                    ? "text-green-600"
-                    : "text-red-600"
-                }`}
-              >
-                ${calculateProfitImpact()} (
-                {(((calculateProfitImpact() - 2450) / 2450) * 100).toFixed(1)}%)
-              </p>
-              <p className="text-sm text-gray-500 mt-1">
-                Current daily profit: $2,450
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Sales Chart */}

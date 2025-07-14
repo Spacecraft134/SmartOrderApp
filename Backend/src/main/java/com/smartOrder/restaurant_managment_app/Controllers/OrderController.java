@@ -1,18 +1,23 @@
 package com.smartOrder.restaurant_managment_app.Controllers;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.web.server.ResponseStatusException;
 import com.smartOrder.restaurant_managment_app.Controllers.CustomExceptions.NoOrderFoundException;
 import com.smartOrder.restaurant_managment_app.Models.Order;
 import com.smartOrder.restaurant_managment_app.Models.OrderedItems;
+import com.smartOrder.restaurant_managment_app.Models.Stats;
 import com.smartOrder.restaurant_managment_app.WebSockets.OrderWebSocket;
 import com.smartOrder.restaurant_managment_app.repository.OrderRepository;
+import com.smartOrder.restaurant_managment_app.repository.StatsSummaryRepository;
 
 @RestController
 @CrossOrigin
@@ -21,6 +26,9 @@ public class OrderController {
 
     @Autowired
     private OrderRepository orderRepo;
+    
+    @Autowired
+    private StatsSummaryRepository statsSummaryRepo;
 
     @Autowired
     private OrderWebSocket orderWebSocket;
@@ -142,5 +150,12 @@ public class OrderController {
         orderWebSocket.notifyOrderStatusChange(saved, previousStatus);
         return ResponseEntity.ok(saved);
     }
+    
+    @GetMapping("/daily/{date}")
+    public Stats getStatsForDate(@PathVariable("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return statsSummaryRepo.findByDate(date)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No stats for date: " + date));
+    }
+
 
 }

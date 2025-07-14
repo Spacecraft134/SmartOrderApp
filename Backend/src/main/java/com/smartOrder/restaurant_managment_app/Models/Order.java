@@ -27,6 +27,11 @@ public class Order {
   @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
   @JsonManagedReference
   private List<OrderedItems> items;
+  private Long totalAmount; 
+  private Double preparationTime;
+
+
+  
 
   public Order() {}
 
@@ -45,7 +50,24 @@ public class Order {
   public void setStatusOfOrder(String statusOfOrder) { this.statusOfOrder = statusOfOrder; }
   public void setItems(List<OrderedItems> items) { this.items = items; }
   public void setReadyTime(LocalDateTime readyTime) { this.readyTime = readyTime; }
- 
+  
+  public Long getTotalAmount() {
+    return totalAmount;
+  }
+
+  public void setTotalAmount(Long totalAmount) {
+    this.totalAmount = totalAmount;
+  }
+  
+  
+
+  public Double getPreparationTime() {
+    return preparationTime;
+  }
+
+  public void setPreparationTime(Double preparationTime) {
+    this.preparationTime = preparationTime;
+  }
 
   @Override
   public String toString() {
