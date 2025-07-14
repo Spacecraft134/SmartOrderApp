@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   FiActivity,
@@ -31,6 +31,7 @@ import {
   LineElement,
 } from "chart.js";
 import { Bar, Pie, Line } from "react-chartjs-2";
+import axios from "axios";
 
 // Register ChartJS components
 ChartJS.register(
@@ -46,33 +47,61 @@ ChartJS.register(
 );
 
 export function AdminDashboard() {
+  const [statsData, setStatsData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const today = new Date().toISOString().split("T")[0];
+    axios
+      .get(`http://localhost:8080/api/orders/daily/${today}`)
+      .then((res) => {
+        console.log("Today's data : ", res.data);
+        setStatsData(res.data);
+        setLoading(false);
+      })
+      .catch(() => {
+        setStatsData(null);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) {
+    return <div className="p-6">Loading...</div>;
+  }
+
+  if (!statsData) {
+    return (
+      <div className="p-6 text-red-500">No stats available for today.</div>
+    );
+  }
+
   // Stats Data
   const stats = [
     {
       title: "Today's Revenue",
-      value: "$2,450",
-      change: "+12%",
+      value: `$${statsData.todaysRevenue}`,
+      change: "+0%", // calculate later
       icon: <FiDollarSign size={24} />,
       trend: "up",
     },
     {
-      title: "Active Orders",
-      value: "18",
-      change: "+5%",
+      title: "Total Orders",
+      value: `${statsData.totalOrders}`,
+      change: "+0%", // calculate later
       icon: <FiShoppingBag size={24} />,
       trend: "up",
     },
     {
       title: "Avg. Order Value",
-      value: "$45.60",
-      change: "+8%",
+      value: `${statsData.avgOrderValue}`,
+      change: "+0%", // calculate later
       icon: <FiTrendingUp size={24} />,
       trend: "up",
     },
     {
       title: "Preparation Time",
-      value: "23 min",
-      change: "-2 min",
+      value: `${statsData.avgPreparationTime} min`,
+      change: "+0%", // calculate later
       icon: <FiClock size={24} />,
       trend: "down",
     },
