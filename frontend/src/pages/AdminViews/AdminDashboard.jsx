@@ -51,7 +51,7 @@ export function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date().toLocaleDateString("en-CA");
     axios
       .get(`http://localhost:8080/api/orders/daily/${today}`)
       .then((res) => {
@@ -487,41 +487,6 @@ export function AdminDashboard() {
               </div>
             ))}
           </div>
-        </div>
-      </div>
-
-      {/* Activity Timeline */}
-      <div className="bg-white rounded-xl shadow-sm p-5">
-        <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
-        <div className="space-y-4">
-          {[
-            {
-              time: "10:42 AM",
-              action: "New order #1245 placed",
-              user: "John D.",
-            },
-            { time: "9:30 AM", action: "Menu item updated", user: "You" },
-            {
-              time: "8:15 AM",
-              action: "New customer registered",
-              user: "Sarah M.",
-            },
-            { time: "Yesterday", action: "Special offer created", user: "You" },
-          ].map((activity, index) => (
-            <div key={index} className="flex items-start">
-              <div className="p-1.5 rounded-full bg-blue-100 text-blue-600 mr-4 mt-1">
-                <FiActivity size={14} />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium">{activity.action}</p>
-                <div className="flex items-center text-sm text-gray-500 mt-1">
-                  <span>{activity.time}</span>
-                  <span className="mx-2">•</span>
-                  <span>{activity.user}</span>
-                </div>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </div>
