@@ -9,6 +9,7 @@ import { Client } from "@stomp/stompjs";
 export function CustomerOrdersList() {
   const { tableNumber } = useParams();
   const [orders, setOrders] = useState([]);
+  const [hiddenOrders, setHiddenOrders] = useState({});
   const [loading, setLoading] = useState(false);
   const clientRef = useRef(null);
 
@@ -43,7 +44,6 @@ export function CustomerOrdersList() {
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
       onConnect: () => {
-        console.log("CustomerOrdersList WebSocket connected");
         stompClient.subscribe(`/topic/orders/${tableNumber}`, (message) => {
           if (!message?.body) return;
           try {
@@ -70,6 +70,18 @@ export function CustomerOrdersList() {
               updatedOrder.statusOfOrder === "READY"
             ) {
               toast.info(`Your order is ready for serving!`);
+              const timeoutTime = Date.now() + 3 * 60 * 1000;
+              setHiddenOrders((prev) => ({
+                ...prev,
+                [updatedOrder.id]: timeoutTime,
+              }));
+              setTimeout(() => {
+                setHiddenOrders((prev) => {
+                  const updated = { ...prev };
+                  delete updated[updatedOrder.id];
+                  return updated;
+                });
+              }, 3 * 60 * 1000);
             }
           } catch (err) {
             console.error("CustomerOrdersList WebSocket error:", err);
@@ -91,16 +103,23 @@ export function CustomerOrdersList() {
     };
   }, [tableNumber]);
 
+  const visibleOrders = orders.filter((order) => {
+    const hiddenUntil = hiddenOrders[order.id];
+    if (order.statusOfOrder === "READY" && hiddenUntil) {
+      return Date.now() < hiddenUntil;
+    }
+    return true;
+  });
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <ToastContainer position="top-center" autoClose={3000} />
       <h2 className="text-2xl font-bold mb-4">
         Orders for Table #{tableNumber}
       </h2>
-
       {loading ? (
         <p className="text-center text-lg font-medium">Loading orders...</p>
-      ) : orders.length === 0 ? (
+      ) : visibleOrders.length === 0 ? (
         <>
           <p className="text-center p-4 bg-yellow-100 rounded-md text-yellow-800 font-semibold shadow mb-6">
             No active orders currently. Feel free to order something new!
@@ -120,9 +139,8 @@ export function CustomerOrdersList() {
           >
             Order More
           </Link>
-
           <ul className="space-y-6">
-            {orders.map((order) => (
+            {visibleOrders.map((order) => (
               <li
                 key={order.id}
                 className="border p-4 rounded shadow hover:shadow-lg transition"
@@ -133,7 +151,8 @@ export function CustomerOrdersList() {
                     <p>
                       Status:{" "}
                       <strong
-                        className={`${
+                        className={`
+                        ${
                           order.statusOfOrder === "READY"
                             ? "text-green-600"
                             : order.statusOfOrder === "IN_PROGRESS"

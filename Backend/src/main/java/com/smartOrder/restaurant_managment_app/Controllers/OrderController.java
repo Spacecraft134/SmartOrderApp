@@ -2,9 +2,13 @@ package com.smartOrder.restaurant_managment_app.Controllers;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-
+import java.util.Set;
+import java.util.TreeSet;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -18,6 +22,10 @@ import com.smartOrder.restaurant_managment_app.Models.Stats;
 import com.smartOrder.restaurant_managment_app.WebSockets.OrderWebSocket;
 import com.smartOrder.restaurant_managment_app.repository.OrderRepository;
 import com.smartOrder.restaurant_managment_app.repository.StatsSummaryRepository;
+import com.smartOrder.restaurant_managment_app.services.BusyHourService;
+import com.smartOrder.restaurant_managment_app.services.SaleByCategoryService;
+import com.smartOrder.restaurant_managment_app.services.SalesPerformanceService;
+import com.smartOrder.restaurant_managment_app.services.TopSellingItemsService;
 
 @RestController
 @CrossOrigin
@@ -32,10 +40,22 @@ public class OrderController {
 
     @Autowired
     private OrderWebSocket orderWebSocket;
+    
+    @Autowired
+    private BusyHourService busyHourService;
+    
+   @Autowired
+   private TopSellingItemsService topSellingItemsService;
+   
+   @Autowired
+   private SalesPerformanceService salesPerformanceService;
+   
+   @Autowired
+   private SaleByCategoryService saleByCategoryService;
 
     // Wrapper class for websocket events
     public static class OrderEvent {
-        private String eventType; // "UPDATE" or "DELETE"
+        private String eventType;
         private Order order;
 
         public OrderEvent() {}
@@ -85,22 +105,22 @@ public class OrderController {
         return orderRepo.findAll();
     }
 
-    // Delete order
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteOrder(@PathVariable Long id) {
+    @PutMapping("/{id}/complete")
+    public ResponseEntity<?> markOrderAsCompleted(@PathVariable Long id) {
         Optional<Order> orderWithMatchingId = orderRepo.findById(id);
         if (orderWithMatchingId.isEmpty()) {
             throw new NoOrderFoundException("No matching Order with: " + id);
         }
 
-        Order orderToDelete = orderWithMatchingId.get();
+        Order order = orderWithMatchingId.get();
+        String previousStatus = order.getStatusOfOrder();
+        order.setStatusOfOrder("COMPLETED");
+        Order saved = orderRepo.save(order);
 
-        // Notify frontend about deletion before deleting
-        orderWebSocket.sendOrderUpdateToAll(orderToDelete, "DELETE");  // <-- Use generic topic
-
-        orderRepo.deleteById(id);
-        return ResponseEntity.noContent().build();
+        orderWebSocket.notifyOrderStatusChange(saved, previousStatus);
+        return ResponseEntity.ok(saved);
     }
+
 
     // Get latest orders by table number
     @GetMapping("/by-table/{tableNumber}")
@@ -156,6 +176,69 @@ public class OrderController {
         return statsSummaryRepo.findByDate(date)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No stats for date: " + date));
     }
+    
+    @GetMapping("/busy-hours/{date}")
+    public Map<String, Object> getBusyHourStats(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+      Map<Integer, Long> actual = busyHourService.calculateActualOrdersByHour(date);
+      Map<Integer, Double> predicted = busyHourService.calculatePredictedOrdersByHour();
 
+     
+      Set<Integer> allHours = new TreeSet<>();
+      allHours.addAll(actual.keySet());
+      allHours.addAll(predicted.keySet());
 
+      List<String> labels = allHours.stream()
+              .sorted()
+              .map(hour -> String.format("%02d:00", hour))
+              .toList();
+
+      List<Long> actualValues = allHours.stream()
+              .map(hour -> actual.getOrDefault(hour, 0L))
+              .toList();
+
+      List<Double> predictedValues = allHours.stream()
+              .map(hour -> predicted.getOrDefault(hour, 0.0))
+              .toList();
+
+      Map<String, Object> response = new HashMap<>();
+      response.put("labels", labels);
+      response.put("actual", actualValues);
+      response.put("predicted", predictedValues);
+
+      return response;
+  }
+    
+    @GetMapping("/top-items/{date}")
+    public List<Map<String, Object>> getTopSellingItems(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+      return topSellingItemsService.calculateTopSellingItems(date);
+    }
+    
+    @GetMapping("/sales-performance/{date}")
+    public Map<String, Object> getHourlySalesPerformance(
+        @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        
+        return salesPerformanceService.calculateHourlySalesPerformance(date);
+    }
+    
+    @GetMapping("/weekly-sales-performance")
+    public ResponseEntity<?> getWeeklySalesPerformance() {
+        Map<String, Object> data = salesPerformanceService.calculateWeeklySalesPerformance();
+        return ResponseEntity.ok(data);
+    }
+    
+    @GetMapping("/monthly-sales-performance/{year}/{month}")
+    public ResponseEntity<?> getMonthlyWeeklySalesPerformance(
+            @PathVariable int year,
+            @PathVariable int month) {
+        Map<String, Object> data = salesPerformanceService.calculateMonthlySalesPerformanceByWeeks(year, month);
+        return ResponseEntity.ok(data);
+    }
+    
+    @GetMapping("/category-sales/{date}")
+    public Map<String, Double> getCategorySales(
+        @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return saleByCategoryService.calculateSalesByCategory(date);
+    }
+
+ 
 }

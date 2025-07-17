@@ -22,10 +22,11 @@ public class OrderCleanupService {
     List<Order> readyOrders = orderRepo.findByStatusOfOrder("READY");
     LocalDateTime now = LocalDateTime.now();
     
-    for(Order order : readyOrders) {
-      if(order.getReadyTime() != null && order.getReadyTime().plusMinutes(3).isBefore(now)) {
-        orderWebSocket.sendOrderUpdateToAll(order, "DELETE");
-        orderRepo.delete(order);
+    for (Order order : readyOrders) {
+      if (order.getReadyTime() != null && order.getReadyTime().plusMinutes(3).isBefore(now)) {
+          order.setStatusOfOrder("COMPLETED");
+          orderRepo.save(order);
+          orderWebSocket.sendOrderUpdateToAll(order, "UPDATE");
       }
     }
   }
