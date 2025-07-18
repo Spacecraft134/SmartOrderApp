@@ -1,6 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import MenuManager from "../pages/MenuManager";
-import HomeScreen from "../pages/HomeScreen";
 
 import { KitchenDashboard } from "../pages/KitchenDashboard";
 import { WaiterDashboard } from "../pages/WaiterDashboard";
@@ -13,12 +12,13 @@ import { AdminDashboard } from "../pages/AdminViews/AdminDashboard";
 import { PosterEditor } from "../pages/AdminViews/PosterEditor";
 import { UpsellSettings } from "../pages/AdminViews/UpsellSettings";
 import { Setting } from "../pages/AdminViews/Setting";
+import { LaunchPage } from "../pages/LaunchPage";
 
 export default function ResturantAppRouter() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<HomeScreen />} />
+        <Route path="/" element={<LaunchPage />} />
         <Route path="/menuManager" element={<MenuManager />} />
         <Route
           path="/customerOrder/:tableNumber?"
