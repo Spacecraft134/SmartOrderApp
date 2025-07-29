@@ -13,6 +13,8 @@ import { PosterEditor } from "../pages/AdminViews/PosterEditor";
 import { UpsellSettings } from "../pages/AdminViews/UpsellSettings";
 import { Setting } from "../pages/AdminViews/Setting";
 import { LaunchPage } from "../pages/LaunchPage";
+import LoginPage from "../pages/LoginPage";
+import SignUpPage from "../pages/SignUpPage";
 
 export default function ResturantAppRouter() {
   return (
@@ -30,6 +32,9 @@ export default function ResturantAppRouter() {
           path="/guest-orders/:tableNumber"
           element={<CustomerOrdersList />}
         />
+
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignUpPage />} />
 
         <Route path="/tableQRs" element={<TableQRGenerator />} />
 

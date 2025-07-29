@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 
 export const LaunchPage = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
-  const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
+  const navigate = useNavigate();
 
   // Handle scroll effect for navbar
   useEffect(() => {
@@ -21,15 +22,6 @@ export const LaunchPage = () => {
       setActiveFeature((prev) => (prev + 1) % features.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, []);
-
-  // Mouse position tracking for parallax effect
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      setCursorPosition({ x: e.clientX, y: e.clientY });
-    };
-    window.addEventListener("mousemove", handleMouseMove);
-    return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
 
   // Features data (added two more features)
@@ -55,70 +47,12 @@ export const LaunchPage = () => {
     },
   ];
 
-  // Calculate parallax effect based on mouse position
-  const calculateParallax = (depth) => {
-    const x = (cursorPosition.x / window.innerWidth - 0.5) * depth;
-    const y = (cursorPosition.y / window.innerHeight - 0.5) * depth;
-    return { x, y };
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0a0e27] to-[#0a1129] text-white overflow-hidden relative">
       {/* Enhanced background effects */}
       <div className="fixed inset-0 overflow-hidden z-0 pointer-events-none">
-        {/* Moving gradient blobs */}
-        <motion.div
-          className="absolute w-96 h-96 rounded-full bg-gradient-to-r from-blue-500/10 to-cyan-500/10 blur-3xl"
-          animate={{
-            ...calculateParallax(20),
-            scale: [1, 1.2, 1],
-          }}
-          transition={{
-            duration: 15,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-        <motion.div
-          className="absolute w-64 h-64 rounded-full bg-gradient-to-r from-purple-500/10 to-pink-500/10 blur-3xl"
-          animate={{
-            ...calculateParallax(-15),
-            scale: [1, 1.1, 1],
-          }}
-          transition={{
-            duration: 12,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 0.5,
-          }}
-        />
-
         {/* Grid lines */}
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHBhdGggZD0iTTAgMEg0MFY0MEgweiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDUpIiBzdHJva2Utd2lkdGg9IjEiLz48L3N2Zz4=')] opacity-20" />
-
-        {/* Floating particles */}
-        {[...Array(30)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute rounded-full bg-white/10 z-0"
-            initial={{
-              top: `${Math.random() * 100}%`,
-              left: `${Math.random() * 100}%`,
-              width: `${Math.random() * 10 + 2}px`,
-              height: `${Math.random() * 10 + 2}px`,
-            }}
-            animate={{
-              y: [0, Math.random() * 30 - 15, 0],
-              x: [0, Math.random() * 20 - 10, 0],
-            }}
-            transition={{
-              duration: Math.random() * 10 + 5,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: Math.random() * 2,
-            }}
-          />
-        ))}
       </div>
 
       {/* Navigation Bar */}
@@ -175,6 +109,7 @@ export const LaunchPage = () => {
                 className="px-5 py-2.5 rounded-lg text-sm font-medium bg-white/5 hover:bg-white/10 backdrop-blur-lg transition-all border border-white/10"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                onClick={() => navigate("/login")}
               >
                 Login
               </motion.button>
@@ -185,6 +120,7 @@ export const LaunchPage = () => {
                   boxShadow: "0 10px 25px -5px rgba(59, 130, 246, 0.4)",
                 }}
                 whileTap={{ scale: 0.95 }}
+                onClick={() => navigate("/signup")}
               >
                 Get Started
               </motion.button>
@@ -251,7 +187,6 @@ export const LaunchPage = () => {
         >
           <motion.div
             className="relative"
-            animate={calculateParallax(5)}
             transition={{ type: "spring", stiffness: 100 }}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 blur-3xl rounded-full"></div>
@@ -357,7 +292,6 @@ export const LaunchPage = () => {
         </motion.div>
       </section>
 
-      {/* Features Section */}
       <section id="features" className="py-28 px-4 relative z-10">
         <div className="max-w-7xl mx-auto">
           <motion.div
@@ -413,7 +347,6 @@ export const LaunchPage = () => {
         </div>
       </section>
 
-      {/* How It Works Section */}
       <section id="how-it-works" className="py-28 px-4 relative z-10">
         <div className="max-w-7xl mx-auto">
           <motion.div
@@ -478,7 +411,6 @@ export const LaunchPage = () => {
         </div>
       </section>
 
-      {/* Media/Demo Section */}
       <section id="demo-media" className="py-28 px-4 relative z-10">
         <div className="max-w-7xl mx-auto">
           <motion.div
@@ -510,7 +442,6 @@ export const LaunchPage = () => {
         </div>
       </section>
 
-      {/* Contact Us Section */}
       <section id="contact-us" className="py-28 px-4 relative z-10">
         <div className="max-w-7xl mx-auto">
           <motion.div
@@ -551,55 +482,6 @@ export const LaunchPage = () => {
               </button>
             </div>
           </form>
-        </div>
-      </section>
-
-      {/* Final CTA */}
-      <section id="contact-us" className="py-28 px-4 relative z-10">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-gradient-to-r from-blue-900/30 to-cyan-900/20 backdrop-blur-xl rounded-3xl p-12 border border-cyan-500/30 relative overflow-hidden">
-            <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-cyan-500/10 blur-3xl"></div>
-            <div className="absolute -bottom-20 -left-20 w-64 h-64 rounded-full bg-blue-500/10 blur-3xl"></div>
-
-            <div className="relative z-10 text-center">
-              <motion.h2
-                className="text-3xl md:text-4xl font-bold mb-6"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6 }}
-              >
-                Ready to Transform Your Restaurant?
-              </motion.h2>
-              <motion.p
-                className="text-gray-300 max-w-2xl mx-auto mb-10"
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.2 }}
-              >
-                Join the revolution in restaurant management and start
-                delivering exceptional dining experiences today.
-              </motion.p>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.4 }}
-              >
-                <motion.button
-                  className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 font-medium text-lg transition-all shadow-lg shadow-blue-500/30"
-                  whileHover={{
-                    scale: 1.05,
-                    boxShadow: "0 10px 25px -5px rgba(59, 130, 246, 0.4)",
-                  }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  Start Your Journey
-                </motion.button>
-              </motion.div>
-            </div>
-          </div>
         </div>
       </section>
     </div>
