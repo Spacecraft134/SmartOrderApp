@@ -144,13 +144,11 @@ export function WaiterDashboard() {
       .catch(() => toast.error("Failed to resolve the request"));
   };
 
-  // UPDATED: Confirm order and immediately remove from the list
   const confirmOrder = (id) => {
     axios
       .put(`http://localhost:8080/api/orders/${id}/progress`)
       .then(() => {
         toast.success("Order confirmed");
-        // Remove order from pending list immediately
         setOrders((prev) => prev.filter((order) => order.id !== id));
       })
       .catch(() => toast.error("Failed to confirm order"));
