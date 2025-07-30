@@ -20,6 +20,8 @@ export function TableQRGenerator() {
     borderColor: "#e2e8f0",
     showTableNumber: true,
   });
+  const [downloadingAll, setDownloadingAll] = useState(false);
+
   const qrRefs = useRef({});
 
   const handleGenerated = () => setGenerated(true);
@@ -28,21 +30,23 @@ export function TableQRGenerator() {
     const value = Math.min(Math.max(1, Number(e.target.value)), 100);
     setNumTables(value);
   };
-
-  const handleDownload = async (num) => {
-    const node = qrRefs.current[num];
-    if (!node) return;
-    try {
-      const dataUrl = await toPng(node, {
-        quality: 1,
-        pixelRatio: 2,
-      });
-      saveAs(dataUrl, `table-${num}-qr.png`);
-    } catch (err) {
-      console.error("QR download failed", err);
+  const handleDownloadAll = async () => {
+    setDownloadingAll(true);
+    for (let num of tableNumbers) {
+      const node = qrRefs.current[num];
+      if (!node) continue;
+      try {
+        const dataUrl = await toPng(node, {
+          quality: 1,
+          pixelRatio: 2,
+        });
+        saveAs(dataUrl, `table-${num}-qr.png`);
+      } catch (err) {
+        console.error(`QR download failed for table ${num}`, err);
+      }
     }
+    setDownloadingAll(false);
   };
-
   const handleLogoUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -102,13 +106,20 @@ export function TableQRGenerator() {
                 Customize Design
               </button>
             )}
-            <button
-              onClick={() => window.print()}
-              disabled={!generated}
-              className="px-5 py-2.5 rounded-lg font-medium bg-green-600 hover:bg-green-700 text-white shadow-sm transition-all"
-            >
-              Print All
-            </button>
+
+            {generated && (
+              <button
+                onClick={handleDownloadAll}
+                disabled={downloadingAll}
+                className={`px-5 py-2.5 rounded-lg font-medium ${
+                  downloadingAll
+                    ? "bg-gray-300 text-gray-600 cursor-wait"
+                    : "bg-green-600 hover:bg-green-700 text-white shadow-sm"
+                }`}
+              >
+                {downloadingAll ? "Downloading..." : "Download All"}
+              </button>
+            )}
 
             <button
               onClick={() => {
@@ -160,13 +171,6 @@ export function TableQRGenerator() {
               {customDesign.showTableNumber && (
                 <p className="mt-3 font-medium">Table #{num}</p>
               )}
-
-              <button
-                onClick={() => handleDownload(num)}
-                className="mt-3 text-sm px-3 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded transition-colors"
-              >
-                Download
-              </button>
             </div>
           ))}
         </div>

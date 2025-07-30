@@ -35,6 +35,7 @@ export function CustomerOrder() {
       .then((res) => {
         setMenuItems(res.data);
         setIsLoading(false);
+        console.log(res.data);
       })
       .catch(() => {
         toast.error("Failed to load menu items");
@@ -298,40 +299,76 @@ export function CustomerOrder() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
-                className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200 border border-gray-100"
+                className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200 border border-gray-100 relative"
               >
-                <div className="h-48 bg-gray-100 flex items-center justify-center">
-                  {item.image ? (
+                {/* Image container */}
+                <div className="h-48 bg-gray-100 flex items-center justify-center relative">
+                  {item.imageUrl ? (
                     <img
-                      src={item.image}
+                      src={
+                        item.imageUrl.startsWith("http")
+                          ? item.imageUrl
+                          : `http://localhost:8080${item.imageUrl}`
+                      }
                       alt={item.name}
-                      className="w-full h-full object-cover"
+                      className={`w-full h-full object-cover ${
+                        !item.available ? "opacity-50 grayscale" : ""
+                      }`}
                     />
                   ) : (
                     <div className="text-gray-400 text-sm">
                       No image available
                     </div>
                   )}
+
+                  {/* Not Available badge */}
+                  {!item.available && (
+                    <span className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 text-xs font-semibold rounded">
+                      Not Available
+                    </span>
+                  )}
                 </div>
+
+                {/* Content */}
                 <div className="p-4">
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-bold text-lg text-gray-900">
+                    <h3
+                      className={`font-bold text-lg text-gray-900 ${
+                        !item.available ? "line-through text-gray-400" : ""
+                      }`}
+                    >
                       {item.name}
                     </h3>
-                    <span className="font-bold text-indigo-600">
+                    <span
+                      className={`font-bold text-indigo-600 ${
+                        !item.available ? "text-gray-400" : ""
+                      }`}
+                    >
                       ${parseFloat(item.price).toFixed(2)}
                     </span>
                   </div>
+
                   {item.description && (
-                    <p className="text-gray-500 text-sm mb-4 line-clamp-2">
+                    <p
+                      className={`text-gray-500 text-sm mb-4 line-clamp-2 ${
+                        !item.available ? "text-gray-400" : ""
+                      }`}
+                    >
                       {item.description}
                     </p>
                   )}
+
                   <button
                     onClick={() => addToCart(item)}
-                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition duration-200 flex items-center justify-center gap-2"
+                    disabled={!item.available}
+                    className={`w-full py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition duration-200 ${
+                      item.available
+                        ? "bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
+                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    }`}
                   >
-                    <FiPlus /> Add to Order
+                    <FiPlus />
+                    Add to Order
                   </button>
                 </div>
               </motion.div>

@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartOrder.restaurant_managment_app.Controllers.CustomExceptions.itemNotFoundException;
 import com.smartOrder.restaurant_managment_app.Models.MenuItems;
 import com.smartOrder.restaurant_managment_app.repository.MenuItemRepository;
+import ch.qos.logback.classic.Logger;
 
 @RestController
 @CrossOrigin
@@ -145,4 +146,19 @@ public class MenuItemController {
         menuItemRepo.deleteById(id);
         return ResponseEntity.noContent().build();
     }
+    
+    @PatchMapping("/{id}/availability")
+    public ResponseEntity<String> toggleAvailability(@PathVariable Long id) {
+      
+        Optional<MenuItems> menuItemOpt = menuItemRepo.findById(id);
+        if (menuItemOpt.isPresent()) {
+            MenuItems item = menuItemOpt.get();
+            item.setAvailable(!item.isAvailable());
+            menuItemRepo.save(item);
+            return ResponseEntity.ok("Availability updated");
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
 }

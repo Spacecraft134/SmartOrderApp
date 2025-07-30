@@ -1,6 +1,7 @@
 package com.smartOrder.restaurant_managment_app.Models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -20,12 +21,14 @@ public class MenuItems {
     private double price;
     private String category;
     private String imageUrl;
+    @Column(nullable = false)
+    private boolean available = true;
   
   public MenuItems() {
     
   }
   
-  public MenuItems(long id, String name, String description, double price, String category, String imageUrl) {
+  public MenuItems(long id, String name, String description, double price, String category, String imageUrl, boolean available) {
     super();
     this.id = id;
     this.name = name;
@@ -33,6 +36,7 @@ public class MenuItems {
     this.price = price;
     this.category = category;
     this.imageUrl = imageUrl;
+    this.available = available;
   }
 
   public long getId() {
@@ -83,12 +87,21 @@ public class MenuItems {
     this.imageUrl = imageUrl;
   }
 
+  public boolean isAvailable() {
+    return available;
+  }
+
+  public void setAvailable(boolean available) {
+    this.available = available;
+  }
+
   @Override
   public String toString() {
     return "MenuItems [name=" + name + ", description=" + description + ", price=" + price
-        + ", category=" + category + ", imageUrl=" + imageUrl + "]";
+        + ", category=" + category + ", imageUrl=" + imageUrl + ", available=" + available + "]";
   }
 
+ 
 
   
   
