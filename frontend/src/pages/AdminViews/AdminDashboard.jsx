@@ -194,6 +194,91 @@ export function AdminDashboard() {
     ],
   };
 
+  const handleExport = (format) => {
+    // Prepare data for export
+    const exportData = {
+      stats: statsData,
+      busyHours: busyHour,
+      topItems,
+      salesData,
+      categorySales,
+      timeRange,
+    };
+
+    let content, filename, mimeType;
+
+    if (format === "json") {
+      content = JSON.stringify(exportData, null, 2);
+      filename = `dashboard-export-${
+        new Date().toISOString().split("T")[0]
+      }.json`;
+      mimeType = "application/json";
+    } else if (format === "csv") {
+      let csvContent = "DASHBOARD EXPORT\n\n";
+
+      csvContent += `Generated at,${new Date().toLocaleString()}\n\n`;
+
+      csvContent += "STATISTICS\n";
+      csvContent += "Metric,Value\n";
+      csvContent += `Today's Revenue,$${statsData.todaysRevenue}\n`;
+      csvContent += `Total Orders,${statsData.totalOrders}\n`;
+      csvContent += `Avg. Order Value,$${statsData.avgOrderValue}\n`;
+      csvContent += `Avg. Preparation Time,${statsData.avgPreparationTime} min\n\n`;
+
+      csvContent += "BUSY HOURS\n";
+      csvContent += "Hour,Predicted Orders,Actual Orders\n";
+      busyHour.labels.forEach((hour, index) => {
+        csvContent += `${hour},${busyHour.predicted[index]},${busyHour.actual[index]}\n`;
+      });
+      csvContent += "\n";
+
+      csvContent += "TOP SELLING ITEMS\n";
+      csvContent += "Rank,Name,Orders,Revenue\n";
+      topItems.forEach((item, index) => {
+        csvContent += `${index + 1},${item.name},${item.orders},$${
+          item.revenue
+        }\n`;
+      });
+      csvContent += "\n";
+
+      csvContent += `SALES PERFORMANCE (${timeRange})\n`;
+      csvContent += "Period,Current,Previous\n";
+      salesData.labels.forEach((label, index) => {
+        const current =
+          timeRange === "today"
+            ? salesData.today[index]
+            : timeRange === "week"
+            ? salesData.thisWeek[index]
+            : salesData.currentMonth[index];
+
+        const previous =
+          timeRange === "today"
+            ? salesData.yesterday[index]
+            : timeRange === "week"
+            ? salesData.lastWeek[index]
+            : salesData.lastMonth[index];
+
+        csvContent += `${label},${current},${previous}\n`;
+      });
+      csvContent += "\n";
+
+      csvContent += "SALES BY CATEGORY\n";
+      csvContent += "Category,Percentage\n";
+      categorySales.labels.forEach((label, index) => {
+        csvContent += `${label},${categorySales.data[index]}%\n`;
+      });
+
+      filename = `dashboard-export-${
+        new Date().toISOString().split("T")[0]
+      }.csv`;
+      mimeType = "text/csv;charset=utf-8";
+      content = csvContent;
+    }
+
+    const blob = new Blob([content], { type: mimeType });
+    saveAs(blob, filename);
+  };
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex justify-between items-center">
@@ -223,9 +308,25 @@ export function AdminDashboard() {
       </div>
 
       <div className="flex space-x-3">
-        <button className="flex items-center px-4 py-2 border rounded-lg">
-          <FiUpload size={18} className="mr-2" /> Export Reports
-        </button>
+        <div className="relative group">
+          <button className="flex items-center px-4 py-2 border rounded-lg hover:bg-gray-50">
+            <FiUpload size={18} className="mr-2" /> Export Reports
+          </button>
+          <div className="absolute hidden group-hover:block bg-white shadow-lg rounded-md mt-1 z-10 w-40">
+            <button
+              onClick={() => handleExport("json")}
+              className="block w-full text-left px-4 py-2 hover:bg-gray-100 rounded-t-md"
+            >
+              Export as JSON
+            </button>
+            <button
+              onClick={() => handleExport("csv")}
+              className="block w-full text-left px-4 py-2 hover:bg-gray-100 rounded-b-md"
+            >
+              Export as CSV
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="flex space-x-4 mt-8">
