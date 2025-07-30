@@ -9,6 +9,7 @@ import {
   FiPlus,
   FiMinus,
   FiHelpCircle,
+  FiSearch,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -26,6 +27,7 @@ export function CustomerOrder() {
   const [isLoading, setIsLoading] = useState(true);
   const [helpRequestSending, setHelpRequestSending] = useState(false);
   const [helpRequested, setHelpRequested] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Load menu items once
   useEffect(() => {
@@ -35,7 +37,6 @@ export function CustomerOrder() {
       .then((res) => {
         setMenuItems(res.data);
         setIsLoading(false);
-        console.log(res.data);
       })
       .catch(() => {
         toast.error("Failed to load menu items");
@@ -48,12 +49,19 @@ export function CustomerOrder() {
     ...new Set(menuItems.map((item) => item.category || "Uncategorized")),
   ];
 
-  const filteredMenu =
-    activeCategory === "All"
-      ? menuItems
-      : menuItems.filter(
-          (item) => (item.category || "Uncategorized") === activeCategory
-        );
+  const filteredMenu = menuItems.filter((item) => {
+    // First filter by category
+    const categoryMatch =
+      activeCategory === "All" ||
+      (item.category || "Uncategorized") === activeCategory;
+
+    // Then filter by search term (only by name)
+    const nameMatch = searchTerm
+      ? item.name.toLowerCase().includes(searchTerm.toLowerCase())
+      : true;
+
+    return categoryMatch && nameMatch;
+  });
 
   // Add item or increase quantity
   const addToCart = (item) => {
@@ -219,7 +227,8 @@ export function CustomerOrder() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
             <h1 className="text-4xl font-extrabold text-gray-900 mb-2">
-              Welcome to <span className="text-indigo-600">RESTURANT NAME</span>
+              Welcome to{" "}
+              <span className="text-indigo-600">Epicurean Delight</span>
             </h1>
             <p className="text-lg text-gray-600">
               Browse our exquisite menu and place your order
@@ -252,6 +261,29 @@ export function CustomerOrder() {
                 </button>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Search bar */}
+        <div className="mb-6">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search menu items by name..."
+              className="w-full px-5 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 pl-12"
+            />
+            <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-xl" />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                aria-label="Clear search"
+              >
+                <FiX />
+              </button>
+            )}
           </div>
         </div>
 
@@ -292,88 +324,111 @@ export function CustomerOrder() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {filteredMenu.map((item) => (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200 border border-gray-100 relative"
-              >
-                {/* Image container */}
-                <div className="h-48 bg-gray-100 flex items-center justify-center relative">
-                  {item.imageUrl ? (
-                    <img
-                      src={
-                        item.imageUrl.startsWith("http")
-                          ? item.imageUrl
-                          : `http://localhost:8080${item.imageUrl}`
-                      }
-                      alt={item.name}
-                      className={`w-full h-full object-cover ${
-                        !item.available ? "opacity-50 grayscale" : ""
-                      }`}
-                    />
-                  ) : (
-                    <div className="text-gray-400 text-sm">
-                      No image available
-                    </div>
-                  )}
-
-                  {/* Not Available badge */}
-                  {!item.available && (
-                    <span className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 text-xs font-semibold rounded">
-                      Not Available
-                    </span>
-                  )}
+          <>
+            {filteredMenu.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="bg-gray-200 border-2 border-dashed rounded-xl w-16 h-16 flex items-center justify-center mb-4">
+                  <FiSearch className="text-gray-500 text-2xl" />
                 </div>
-
-                {/* Content */}
-                <div className="p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3
-                      className={`font-bold text-lg text-gray-900 ${
-                        !item.available ? "line-through text-gray-400" : ""
-                      }`}
-                    >
-                      {item.name}
-                    </h3>
-                    <span
-                      className={`font-bold text-indigo-600 ${
-                        !item.available ? "text-gray-400" : ""
-                      }`}
-                    >
-                      ${parseFloat(item.price).toFixed(2)}
-                    </span>
-                  </div>
-
-                  {item.description && (
-                    <p
-                      className={`text-gray-500 text-sm mb-4 line-clamp-2 ${
-                        !item.available ? "text-gray-400" : ""
-                      }`}
-                    >
-                      {item.description}
-                    </p>
-                  )}
-
-                  <button
-                    onClick={() => addToCart(item)}
-                    disabled={!item.available}
-                    className={`w-full py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition duration-200 ${
-                      item.available
-                        ? "bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
-                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    }`}
+                <h2 className="text-2xl font-bold text-gray-700 mb-2">
+                  No matching items found
+                </h2>
+                <p className="text-gray-500 text-center max-w-md">
+                  We couldn't find any menu items matching "{searchTerm}". Try
+                  another search term or clear your search to see all items.
+                </p>
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  Clear Search
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {filteredMenu.map((item) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200 border border-gray-100 relative"
                   >
-                    <FiPlus />
-                    Add to Order
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                    {/* Image container */}
+                    <div className="h-48 bg-gray-100 flex items-center justify-center relative">
+                      {item.imageUrl ? (
+                        <img
+                          src={
+                            item.imageUrl.startsWith("http")
+                              ? item.imageUrl
+                              : `http://localhost:8080${item.imageUrl}`
+                          }
+                          alt={item.name}
+                          className={`w-full h-full object-cover ${
+                            !item.available ? "opacity-50 grayscale" : ""
+                          }`}
+                        />
+                      ) : (
+                        <div className="text-gray-400 text-sm">
+                          No image available
+                        </div>
+                      )}
+
+                      {/* Not Available badge */}
+                      {!item.available && (
+                        <span className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 text-xs font-semibold rounded">
+                          Not Available
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3
+                          className={`font-bold text-lg text-gray-900 ${
+                            !item.available ? "line-through text-gray-400" : ""
+                          }`}
+                        >
+                          {item.name}
+                        </h3>
+                        <span
+                          className={`font-bold text-indigo-600 ${
+                            !item.available ? "text-gray-400" : ""
+                          }`}
+                        >
+                          ${parseFloat(item.price).toFixed(2)}
+                        </span>
+                      </div>
+
+                      {item.description && (
+                        <p
+                          className={`text-gray-500 text-sm mb-4 line-clamp-2 ${
+                            !item.available ? "text-gray-400" : ""
+                          }`}
+                        >
+                          {item.description}
+                        </p>
+                      )}
+
+                      <button
+                        onClick={() => addToCart(item)}
+                        disabled={!item.available}
+                        className={`w-full py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition duration-200 ${
+                          item.available
+                            ? "bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
+                            : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        }`}
+                      >
+                        <FiPlus />
+                        Add to Order
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -386,7 +441,7 @@ export function CustomerOrder() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsCartOpen(false)}
-              className="fixed inset-0  bg-opacity-0 backdrop-blur-xs z-50"
+              className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50"
             />
 
             <motion.div
