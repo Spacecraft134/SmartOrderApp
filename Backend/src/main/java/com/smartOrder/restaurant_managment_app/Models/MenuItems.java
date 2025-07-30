@@ -19,18 +19,20 @@ public class MenuItems {
     private String description;
     private double price;
     private String category;
+    private String imageUrl;
   
   public MenuItems() {
     
   }
   
-  public MenuItems(long id, String name, String description, double price, String category) {
+  public MenuItems(long id, String name, String description, double price, String category, String imageUrl) {
     super();
     this.id = id;
     this.name = name;
     this.description = description;
     this.price = price;
     this.category = category;
+    this.imageUrl = imageUrl;
   }
 
   public long getId() {
@@ -73,11 +75,21 @@ public class MenuItems {
     this.category = category;
   }
 
+  public String getImageUrl() {
+    return imageUrl;
+  }
+
+  public void setImageUrl(String imageUrl) {
+    this.imageUrl = imageUrl;
+  }
+
   @Override
   public String toString() {
-    return "MenuItems [id=" + id + ", name=" + name + ", description=" + description + ", price="
-        + price + ", category=" + category + "]";
+    return "MenuItems [name=" + name + ", description=" + description + ", price=" + price
+        + ", category=" + category + ", imageUrl=" + imageUrl + "]";
   }
+
+
   
   
 }

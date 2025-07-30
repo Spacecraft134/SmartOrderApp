@@ -172,6 +172,7 @@ export const LaunchPage = () => {
                 boxShadow: "0 10px 25px -5px rgba(59, 130, 246, 0.4)",
               }}
               whileTap={{ scale: 0.95 }}
+              onClick={() => navigate("/signup")}
             >
               Start Your Transformation
             </motion.button>
