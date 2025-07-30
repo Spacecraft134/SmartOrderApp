@@ -34,6 +34,13 @@ ChartJS.register(
   LineElement
 );
 
+import { Dialog, DialogTitle, DialogContent, IconButton } from "@mui/material";
+import { Close } from "@mui/icons-material";
+
+import { CustomerOrder } from "../CustomerViews/CustomerOrder";
+import { WaiterDashboard } from "../WaiterDashboard";
+import { KitchenDashboard } from "../KitchenDashboard";
+
 export function AdminDashboard() {
   const [statsData, setStatsData] = useState(null);
   const [busyHour, setBusyHours] = useState(null);
@@ -41,6 +48,10 @@ export function AdminDashboard() {
   const [salesData, setSalesData] = useState(null);
   const [categorySales, setCategorySales] = useState({ labels: [], data: [] });
   const [timeRange, setTimeRange] = useState("today");
+
+  const [openCustomer, setOpenCustomer] = useState(false);
+  const [openWaiter, setOpenWaiter] = useState(false);
+  const [openKitchen, setOpenKitchen] = useState(false);
 
   useEffect(() => {
     const today = new Date().toLocaleDateString("en-CA");
@@ -216,6 +227,115 @@ export function AdminDashboard() {
           <FiUpload size={18} className="mr-2" /> Export Reports
         </button>
       </div>
+
+      <div className="flex space-x-4 mt-8">
+        <button
+          onClick={() => setOpenCustomer(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
+        >
+          <span className="mr-2">👨‍💼</span> Customer View
+        </button>
+
+        <button
+          onClick={() => setOpenWaiter(true)}
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center"
+        >
+          <span className="mr-2">👨‍🍳</span> Waiter View
+        </button>
+
+        <button
+          onClick={() => setOpenKitchen(true)}
+          className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg flex items-center"
+        >
+          <span className="mr-2">🍳</span> Kitchen View
+        </button>
+      </div>
+      <Dialog
+        open={openCustomer}
+        onClose={() => setOpenCustomer(false)}
+        fullScreen
+        PaperProps={{
+          style: {
+            backgroundColor: "#f8fafc",
+          },
+        }}
+      >
+        <DialogTitle className="flex justify-between items-center bg-white shadow-sm sticky top-0 z-10">
+          <span className="text-xl font-semibold">
+            Admin View: Customer DashBoard
+          </span>
+          <IconButton
+            onClick={() => setOpenCustomer(false)}
+            className="hover:bg-gray-100"
+            size="large"
+          >
+            <Close className="text-gray-600" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent className="overflow-y-auto p-0">
+          <div className="h-full">
+            <CustomerOrder />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={openWaiter}
+        onClose={() => setOpenWaiter(false)}
+        fullScreen
+        PaperProps={{
+          style: {
+            backgroundColor: "#f8fafc",
+          },
+        }}
+      >
+        <DialogTitle className="flex justify-between items-center bg-white shadow-sm sticky top-0 z-10">
+          <span className="text-xl font-semibold">
+            Admin View: Waiter DashBoard
+          </span>
+          <IconButton
+            onClick={() => setOpenWaiter(false)}
+            className="hover:bg-gray-100"
+            size="large"
+          >
+            <Close className="text-gray-600" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent className="overflow-y-auto p-0">
+          <div className="h-full">
+            <WaiterDashboard />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={openKitchen}
+        onClose={() => setOpenKitchen(false)}
+        fullScreen
+        PaperProps={{
+          style: {
+            backgroundColor: "#f8fafc",
+          },
+        }}
+      >
+        <DialogTitle className="flex justify-between items-center bg-white shadow-sm sticky top-0 z-10">
+          <span className="text-xl font-semibold">
+            Admin View: Kitchen DashBoard
+          </span>
+          <IconButton
+            onClick={() => setOpenKitchen(false)}
+            className="hover:bg-gray-100"
+            size="large"
+          >
+            <Close className="text-gray-600" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent className="overflow-y-auto p-0">
+          <div className="h-full">
+            <KitchenDashboard />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="bg-white p-5 rounded-xl shadow-sm">
