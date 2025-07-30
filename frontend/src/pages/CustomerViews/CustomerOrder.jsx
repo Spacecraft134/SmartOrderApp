@@ -10,6 +10,8 @@ import {
   FiMinus,
   FiHelpCircle,
   FiSearch,
+  FiChevronDown,
+  FiChevronUp,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -28,6 +30,18 @@ export function CustomerOrder() {
   const [helpRequestSending, setHelpRequestSending] = useState(false);
   const [helpRequested, setHelpRequested] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isHelpDropdownOpen, setIsHelpDropdownOpen] = useState(false);
+  const [helpReason, setHelpReason] = useState("Need assistance");
+
+  // Define help reasons
+  const helpReasons = [
+    "Need assistance",
+    "Need bill",
+    "Questions about food",
+    "Cutlery/napkins request",
+    "Table issue",
+    "Other request",
+  ];
 
   // Load menu items once
   useEffect(() => {
@@ -140,7 +154,7 @@ export function CustomerOrder() {
   };
 
   // Send help request for this table
-  const handleHelpRequest = () => {
+  const handleHelpRequest = (reason = helpReason) => {
     if (!tableID) {
       toast.warning("Please enter your Table ID to request help!");
       return;
@@ -151,14 +165,16 @@ export function CustomerOrder() {
     axios
       .post("http://localhost:8080/api/help-requests", {
         tableNumber: tableID,
+        reason: reason,
       })
+
       .then(() => {
         toast.success("Help request sent! A waiter is on the way.", {
-          icon: "🆘",
           position: "top-center",
           autoClose: 3000,
         });
         setHelpRequested(true);
+        setIsHelpDropdownOpen(false); // Close dropdown after request
         setTimeout(() => setHelpRequested(false), 30000); // Reset after 30 seconds
       })
       .catch(() => toast.error("Failed to send help request"))
@@ -207,28 +223,67 @@ export function CustomerOrder() {
         )}
       </motion.button>
 
-      <motion.button
-        onClick={handleHelpRequest}
-        disabled={helpRequestSending || helpRequested}
-        className={`fixed left-6 bottom-6 z-40 p-4 rounded-full shadow-xl transition-all flex items-center justify-center ${
-          helpRequestSending
-            ? "bg-gray-400 cursor-not-allowed text-white"
-            : helpRequested
-            ? "bg-green-600 text-white cursor-default"
-            : "bg-amber-500 text-white hover:bg-amber-600"
-        }`}
-        whileHover={{ scale: helpRequestSending || helpRequested ? 1 : 1.05 }}
-        whileTap={{ scale: helpRequestSending || helpRequested ? 1 : 0.95 }}
-      >
-        <FiHelpCircle className="text-xl" />
-      </motion.button>
+      {/* Help Request Button with Dropdown */}
+      <div className="fixed left-6 bottom-6 z-40 flex flex-col items-end">
+        <AnimatePresence>
+          {isHelpDropdownOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="mb-2 w-48 bg-white rounded-lg shadow-xl overflow-hidden"
+            >
+              {helpReasons.map((reason) => (
+                <button
+                  key={reason}
+                  onClick={() => {
+                    setHelpReason(reason);
+                    handleHelpRequest(reason);
+                  }}
+                  disabled={helpRequestSending || helpRequested}
+                  className={`w-full px-4 py-3 text-left text-sm ${
+                    helpReason === reason
+                      ? "bg-indigo-100 text-indigo-700"
+                      : "hover:bg-gray-50"
+                  } transition-colors`}
+                >
+                  {reason}
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <motion.button
+          onClick={() => {
+            if (helpRequested || helpRequestSending) return;
+            setIsHelpDropdownOpen(!isHelpDropdownOpen);
+          }}
+          disabled={helpRequestSending || helpRequested}
+          className={`p-4 rounded-full shadow-xl transition-all flex items-center ${
+            helpRequestSending
+              ? "bg-gray-400 cursor-not-allowed text-white"
+              : helpRequested
+              ? "bg-green-600 text-white cursor-default"
+              : "bg-amber-500 text-white hover:bg-amber-600"
+          }`}
+          whileHover={{ scale: helpRequestSending || helpRequested ? 1 : 1.05 }}
+          whileTap={{ scale: helpRequestSending || helpRequested ? 1 : 0.95 }}
+        >
+          <FiHelpCircle className="text-xl" />
+          {!helpRequested && !helpRequestSending && (
+            <span className="ml-2">
+              {isHelpDropdownOpen ? <FiChevronUp /> : <FiChevronDown />}
+            </span>
+          )}
+        </motion.button>
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
             <h1 className="text-4xl font-extrabold text-gray-900 mb-2">
-              Welcome to{" "}
-              <span className="text-indigo-600">Epicurean Delight</span>
+              Welcome to <span className="text-indigo-600">RESTURANT NAME</span>
             </h1>
             <p className="text-lg text-gray-600">
               Browse our exquisite menu and place your order

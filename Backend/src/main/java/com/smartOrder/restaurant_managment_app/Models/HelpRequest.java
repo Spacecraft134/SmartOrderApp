@@ -15,10 +15,12 @@ public class HelpRequest {
   private String tableNumber;
   private boolean resolved;
   private LocalDateTime requestTime;
+  private String reason;
   
   public HelpRequest() {
     this.requestTime = LocalDateTime.now();
     this.resolved = false;
+    this.reason = "Need assistance";
   }
 
   public Long getId() {
@@ -55,10 +57,19 @@ public class HelpRequest {
     this.requestTime = requestTime;
   }
 
+  public String getReason() {
+    return reason;
+  }
+
+  public void setReason(String reason) {
+    this.reason = reason;
+  }
+  
   @Override
   public String toString() {
     return "HelpRequest [id=" + id + ", tableNumber=" + tableNumber 
-        + ", resolved=" + resolved + ", requestTime=" + requestTime + "]";
+        + ", resolved=" + resolved + ", requestTime=" + requestTime 
+        + ", reason=" + reason + "]"; 
   }
   
   
