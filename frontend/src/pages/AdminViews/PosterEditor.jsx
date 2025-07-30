@@ -30,6 +30,10 @@ export function PosterEditor() {
     setPoster((prev) => ({ ...prev, text: textRef.current.innerHTML }));
   };
 
+  const handleAlignmentChange = (alignment) => {
+    setPoster((prev) => ({ ...prev, alignment }));
+  };
+
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -45,27 +49,62 @@ export function PosterEditor() {
   };
 
   const handleSave = async () => {
-    if (!previewRef.current) return;
-    try {
-      const canvas = await html2canvas(previewRef.current, {
-        scale: 2,
-        backgroundColor: poster.bgColor,
-      });
-      const link = document.createElement("a");
-      link.download = `poster-${new Date().toISOString().slice(0, 10)}.png`;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
-      toast.success("Poster downloaded successfully!");
-    } catch (error) {
-      toast.error("Failed to generate poster");
-      console.error(error);
-    }
-  };
+    const clone = previewRef.current.cloneNode(true);
 
-  const handleAlignmentChange = (align) => {
-    setPoster({ ...poster, alignment: align });
-  };
+    clone.style.width = `${previewRef.current.offsetWidth}px`;
+    clone.style.height = `${previewRef.current.offsetHeight}px`;
+    clone.style.position = "absolute";
+    clone.style.top = "-9999px";
+    clone.style.left = "-9999px";
 
+    document.body.appendChild(clone);
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const canvas = await html2canvas(clone, {
+      scale: 3,
+      logging: false,
+      useCORS: true,
+      backgroundColor: poster.bgColor,
+      onclone: (clonedDoc) => {
+        const clonedPreview = clonedDoc.getElementById("preview-container");
+        if (clonedPreview) {
+          clonedPreview.style.width = `${previewRef.current.offsetWidth}px`;
+          clonedPreview.style.height = `${previewRef.current.offsetHeight}px`;
+          clonedPreview.style.backgroundColor = poster.bgColor;
+          clonedPreview.style.color = poster.textColor;
+
+          // Make sure text is visible and large
+          const textElement = clonedPreview.querySelector("[contenteditable]");
+          if (textElement) {
+            textElement.style.fontSize = "3rem";
+            textElement.style.lineHeight = "1.5";
+            textElement.style.padding = "2rem";
+            textElement.style.textAlign = poster.alignment;
+            // Remove flex properties as they might interfere with text alignment
+            textElement.style.display = "block";
+            textElement.style.width = "100%";
+            // Ensure text container takes full width
+            const textContainer = textElement.parentElement;
+            if (textContainer) {
+              textContainer.style.width = "100%";
+            }
+          }
+        }
+      },
+    });
+
+    // Remove clone
+    document.body.removeChild(clone);
+
+    // Download
+    const dataUrl = canvas.toDataURL("image/png");
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = `poster-${new Date().toISOString().slice(0, 10)}.png`;
+    link.click();
+
+    toast.success("Poster downloaded successfully!");
+  };
   useEffect(() => {
     if (textRef.current) {
       textRef.current.style.textAlign = poster.alignment;
@@ -74,19 +113,17 @@ export function PosterEditor() {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">
+      <h1 className="text-3xl font-bold text-center mb-8 text-gray-700">
         Poster Editor
       </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Editor Panel */}
-        <div className="bg-white rounded-xl shadow-md p-6">
+        <div className="rounded-xl shadow-md p-6 bg-white">
           <h2 className="text-xl font-semibold mb-6 text-gray-700">
             Design Tools
           </h2>
 
           <div className="space-y-6">
-            {/* Text Formatting */}
             <div>
               <label className="block mb-2 font-medium text-gray-700">
                 Text Formatting
@@ -128,7 +165,6 @@ export function PosterEditor() {
               </div>
             </div>
 
-            {/* Color Pickers */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block mb-2 font-medium text-gray-700">
@@ -168,7 +204,6 @@ export function PosterEditor() {
               </div>
             </div>
 
-            {/* Alignment */}
             <div>
               <label className="block mb-2 font-medium text-gray-700">
                 Text Alignment
@@ -210,7 +245,6 @@ export function PosterEditor() {
               </div>
             </div>
 
-            {/* Image Upload */}
             <div>
               <label className="block mb-2 font-medium text-gray-700">
                 Upload Image
@@ -229,13 +263,12 @@ export function PosterEditor() {
                 className="hidden"
               />
               {poster.image && (
-                <p className="mt-2 text-sm text-green-600">
+                <p className="mt-2 text-sm text-green-700">
                   Image uploaded successfully!
                 </p>
               )}
             </div>
 
-            {/* Download Button */}
             <button
               onClick={handleSave}
               className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition"
@@ -245,43 +278,59 @@ export function PosterEditor() {
           </div>
         </div>
 
-        {/* Preview Panel */}
-        <div className="bg-white rounded-xl shadow-md p-6">
+        <div className="rounded-xl shadow-md p-6 border-2 border-gray-200">
           <h2 className="text-xl font-semibold mb-6 text-gray-700">
             Poster Preview
           </h2>
           <div
             ref={previewRef}
-            className="w-full aspect-[3/4] rounded-lg border-2 border-gray-200 overflow-hidden flex flex-col items-center justify-center p-8"
-            style={{ backgroundColor: poster.bgColor }}
+            id="preview-container"
+            className="w-full aspect-[3/4] rounded-lg overflow-hidden flex flex-col items-center justify-center p-8"
+            style={{
+              backgroundColor: poster.bgColor,
+              color: poster.textColor,
+            }}
           >
             {poster.image && (
               <img
                 src={poster.image}
                 alt="Poster"
                 className="max-w-full max-h-[50%] object-contain mb-6"
+                style={{ userSelect: "none" }}
               />
             )}
-            <div
-              ref={textRef}
-              contentEditable
-              onInput={() =>
-                setPoster((prev) => ({
-                  ...prev,
-                  text: textRef.current.innerHTML,
-                }))
-              }
-              className="w-full min-h-[100px] p-4 outline-none text-center"
-              style={{
-                color: poster.textColor,
-                textAlign: poster.alignment,
-                fontSize: "1.5rem",
-                lineHeight: "1.5",
-              }}
-              dangerouslySetInnerHTML={{ __html: poster.text }}
-            />
+            <div className="relative w-full min-h-[120px]">
+              {(!poster.text ||
+                poster.text === "<br>" ||
+                poster.text.trim() === "") && (
+                <div
+                  className="absolute inset-0 px-6 py-4 pointer-events-none font-serif text-[1.75rem] leading-relaxed tracking-wide"
+                  style={{ color: "#9CA3AF" }}
+                >
+                  Create Your Own Poster...
+                </div>
+              )}
+
+              <div
+                ref={textRef}
+                contentEditable
+                suppressContentEditableWarning
+                className="w-full min-h-[120px] px-6 py-4 outline-none rounded-md font-serif text-[3rem] leading-relaxed tracking-wide relative z-10"
+                style={{
+                  color: poster.textColor,
+                  textAlign: poster.alignment,
+                  backgroundColor: "transparent",
+                }}
+                onInput={(e) => {
+                  setPoster((prev) => ({ ...prev, text: e.target.innerHTML }));
+                }}
+                onBlur={(e) => {
+                  setPoster((prev) => ({ ...prev, text: e.target.innerHTML }));
+                }}
+              />
+            </div>
           </div>
-          <p className="mt-4 text-sm text-gray-500 text-center">
+          <p className="mt-4 text-sm text-center text-gray-500">
             Note: The downloaded version will be higher quality
           </p>
         </div>
