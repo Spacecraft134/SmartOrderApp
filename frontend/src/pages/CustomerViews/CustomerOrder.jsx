@@ -608,6 +608,9 @@ export function CustomerOrder() {
                     ${cartTotal.toFixed(2)}
                   </span>
                 </div>
+                <p className="text-sm text-gray-500 mb-4">
+                  *Tax will be calculated and applied at the counter.
+                </p>
                 <button
                   onClick={handleSubmitOrder}
                   disabled={isSubmitting || cart.length === 0}

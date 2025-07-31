@@ -5,7 +5,13 @@ import { motion } from "framer-motion";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import axios from "axios";
-import { FiCheck, FiClock, FiAlertTriangle, FiSearch } from "react-icons/fi";
+import {
+  FiCheck,
+  FiClock,
+  FiAlertTriangle,
+  FiSearch,
+  FiTrash2,
+} from "react-icons/fi";
 import notificationSound from "../assets/ding-101492.mp3";
 
 export function WaiterDashboard() {
@@ -63,7 +69,17 @@ export function WaiterDashboard() {
         stompClient.subscribe("/topic/help-requests", (message) => {
           if (!message?.body) return;
           try {
-            const updatedRequest = JSON.parse(message.body);
+            const event = JSON.parse(message.body);
+
+            // Handle DELETE events
+            if (event.eventType === "DELETE") {
+              setRequests((prev) =>
+                prev.filter((req) => req.id !== event.requestId)
+              );
+              return;
+            }
+
+            const updatedRequest = event.request || event;
             setRequests((prev) => {
               const index = prev.findIndex((r) => r.id === updatedRequest.id);
               if (index >= 0) {
@@ -134,14 +150,13 @@ export function WaiterDashboard() {
     };
   }, []);
 
-  const markedAsResolved = (id) => {
+  const deleteRequest = (id) => {
     axios
-      .put(`http://localhost:8080/api/help-requests/${id}/resolve`)
+      .delete(`http://localhost:8080/api/help-requests/${id}`)
       .then(() => {
-        setRequests((prev) => prev.filter((req) => req.id !== id));
-        toast.success("Request marked as resolved");
+        toast.success("Request deleted");
       })
-      .catch(() => toast.error("Failed to resolve the request"));
+      .catch(() => toast.error("Failed to delete request"));
   };
 
   const confirmOrder = (id) => {
@@ -299,11 +314,11 @@ export function WaiterDashboard() {
                         </div>
                       </div>
                       <button
-                        onClick={() => markedAsResolved(req.id)}
-                        className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm"
+                        onClick={() => deleteRequest(req.id)}
+                        className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm"
                       >
-                        <FiCheck size={14} />
-                        Resolve
+                        <FiTrash2 size={14} />
+                        Delete
                       </button>
                     </div>
                   </motion.div>

@@ -1,9 +1,13 @@
 package com.smartOrder.restaurant_managment_app.Controllers;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,6 +31,9 @@ public class HelpRequestController {
   private HelpRequestRepository helpRequestRepo;
   private HelpRequestWebSocketService webSocketService;
   private static final Logger log = LoggerFactory.getLogger(HelpRequestController.class);
+  
+  @Autowired
+  private SimpMessagingTemplate messagingTemplate;
 
   
   public HelpRequestController(HelpRequestRepository helpRequestRepo, HelpRequestWebSocketService webSocketService) {
@@ -59,7 +66,6 @@ public class HelpRequestController {
   
   @PostMapping()
   public HelpRequest createHelpRequest(@RequestBody HelpRequest helpRequest) {
-    // Set default reason if not provided
     if(helpRequest.getReason() == null || helpRequest.getReason().isEmpty()) {
       helpRequest.setReason("Need assistance");
     }
@@ -74,10 +80,19 @@ public class HelpRequestController {
   
   @DeleteMapping("/{id}")
   public ResponseEntity<Void> deleteRequest(@PathVariable Long id) {
-    if(!helpRequestRepo.existsById(id)) {
-      throw new NoRequestFoundException("No Request found with id: " + id);
-    }
-    helpRequestRepo.deleteById(id);
-    return ResponseEntity.noContent().build();
+      if (!helpRequestRepo.existsById(id)) {
+          throw new NoRequestFoundException("No Request found with id: " + id);
+      }
+      
+      // Delete from repository
+      helpRequestRepo.deleteById(id);
+      
+      // Broadcast deletion event
+      Map<String, Object> event = new HashMap<>();
+      event.put("eventType", "DELETE");
+      event.put("requestId", id);
+      messagingTemplate.convertAndSend("/topic/help-requests", event);
+      
+      return ResponseEntity.noContent().build();
   }
 }
