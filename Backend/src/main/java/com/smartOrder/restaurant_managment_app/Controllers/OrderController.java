@@ -52,6 +52,10 @@ public class OrderController {
    
    @Autowired
    private SaleByCategoryService saleByCategoryService;
+   
+   @Autowired
+   private TableController tableController;
+   
 
     // Wrapper class for websocket events
     public static class OrderEvent {
@@ -74,6 +78,7 @@ public class OrderController {
     // Create order
     @PostMapping()
     public Order createNewOrder(@RequestBody Order order) {
+      tableController.startSession(order.getTableNumber());
         order.setTime(LocalDateTime.now());
         order.setStatusOfOrder("WAITING_FOR_CONFIRMATION");
         if (order.getItems() != null) {
@@ -83,7 +88,7 @@ public class OrderController {
         }
 
         Order saved = orderRepo.save(order);
-        orderWebSocket.sendOrderUpdateToAll(saved, "UPDATE");  // <-- Use generic topic
+        orderWebSocket.sendOrderUpdateToAll(saved, "UPDATE");  
 
         return saved;
     }
@@ -239,6 +244,15 @@ public class OrderController {
         @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return saleByCategoryService.calculateSalesByCategory(date);
     }
-
- 
+    
+ // Add this new endpoint to your existing OrderController
+    @GetMapping("/kitchen-queue")
+    public ResponseEntity<Map<String, Long>> getKitchenQueueSize() {
+            // Count orders in progress or waiting for confirmation
+            long inProgressCount = orderRepo.countByStatusOfOrder("IN_PROGRESS");
+            long waitingCount = orderRepo.countByStatusOfOrder("WAITING_FOR_CONFIRMATION");
+            long totalQueue = inProgressCount + waitingCount;
+            
+            return ResponseEntity.ok(Map.of("count", totalQueue));
+    }
 }

@@ -1,37 +1,66 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
+import { motion } from "framer-motion";
+import { ThankYou } from "../CustomerViews/ThankyouPage";
 
 export function CustomerOrdersList() {
   const { tableNumber } = useParams();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
-  const [hiddenOrders, setHiddenOrders] = useState({});
   const [loading, setLoading] = useState(false);
+  const [sessionEnded, setSessionEnded] = useState(false);
   const clientRef = useRef(null);
 
+  // Check session status on mount
   useEffect(() => {
+    const checkSessionStatus = async () => {
+      try {
+        const res = await axios.get(
+          `http://localhost:8080/api/tables/${tableNumber}/session-status`
+        );
+        if (!res.data) {
+          setSessionEnded(true);
+          navigate(`/thank-you/${tableNumber}`);
+        }
+      } catch (error) {
+        console.error("Failed to check session status:", error);
+        toast.error("Failed to verify table session");
+      }
+    };
+
+    checkSessionStatus();
+  }, [tableNumber, navigate]);
+
+  useEffect(() => {
+    if (sessionEnded) return;
+
     let isMounted = true;
 
     const fetchOrders = async () => {
       setLoading(true);
       try {
-        const res = await axios.get(
+        const ordersRes = await axios.get(
           `http://localhost:8080/api/orders/by-table/${tableNumber}`
         );
-        const fetched = Array.isArray(res.data) ? res.data : [res.data];
+
         if (isMounted) {
+          const fetched = Array.isArray(ordersRes.data)
+            ? ordersRes.data
+            : [ordersRes.data];
           setOrders(
             fetched
               .filter((o) => o.statusOfOrder !== "COMPLETED")
               .sort((a, b) => new Date(b.time) - new Date(a.time))
           );
         }
-      } catch {
+      } catch (err) {
         toast.error("Failed to fetch orders");
+        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -43,7 +72,10 @@ export function CustomerOrdersList() {
     const stompClient = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
       onConnect: () => {
+        // Subscribe to table-specific orders
         stompClient.subscribe(`/topic/orders/${tableNumber}`, (message) => {
           if (!message?.body) return;
           try {
@@ -70,23 +102,31 @@ export function CustomerOrdersList() {
               updatedOrder.statusOfOrder === "READY"
             ) {
               toast.info(`Your order is ready for serving!`);
-              const timeoutTime = Date.now() + 3 * 60 * 1000;
-              setHiddenOrders((prev) => ({
-                ...prev,
-                [updatedOrder.id]: timeoutTime,
-              }));
-              setTimeout(() => {
-                setHiddenOrders((prev) => {
-                  const updated = { ...prev };
-                  delete updated[updatedOrder.id];
-                  return updated;
-                });
-              }, 3 * 60 * 1000);
             }
           } catch (err) {
             console.error("CustomerOrdersList WebSocket error:", err);
           }
         });
+
+        // Subscribe to session ended events
+        stompClient.subscribe(
+          `/topic/session-ended/${tableNumber}`,
+          (message) => {
+            if (!message?.body) return;
+            try {
+              const event = JSON.parse(message.body);
+              if (event.eventType === "SESSION_ENDED") {
+                navigate(`/thank-you/${tableNumber}`);
+              }
+            } catch (err) {
+              console.error("Error parsing session message", err);
+            }
+          }
+        );
+      },
+      onStompError: (frame) => {
+        console.error("Broker reported error: " + frame.headers["message"]);
+        console.error("Additional details: " + frame.body);
       },
     });
 
@@ -96,20 +136,15 @@ export function CustomerOrdersList() {
     return () => {
       isMounted = false;
       if (clientRef.current?.active) {
-        clientRef.current.deactivate().then(() => {
-          console.log("CustomerOrdersList WebSocket cleaned up");
-        });
+        clientRef.current.deactivate();
       }
     };
-  }, [tableNumber]);
+  }, [tableNumber, sessionEnded, navigate]);
 
-  const visibleOrders = orders.filter((order) => {
-    const hiddenUntil = hiddenOrders[order.id];
-    if (order.statusOfOrder === "READY" && hiddenUntil) {
-      return Date.now() < hiddenUntil;
-    }
-    return true;
-  });
+  // Redirect to thank you page if session ended
+  if (sessionEnded) {
+    return <ThankYou />;
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -119,7 +154,7 @@ export function CustomerOrdersList() {
       </h2>
       {loading ? (
         <p className="text-center text-lg font-medium">Loading orders...</p>
-      ) : visibleOrders.length === 0 ? (
+      ) : orders.length === 0 ? (
         <>
           <p className="text-center p-4 bg-yellow-100 rounded-md text-yellow-800 font-semibold shadow mb-6">
             No active orders currently. Feel free to order something new!
@@ -140,27 +175,28 @@ export function CustomerOrdersList() {
             Order More
           </Link>
           <ul className="space-y-6">
-            {visibleOrders.map((order) => (
+            {orders.map((order) => (
               <li
                 key={order.id}
                 className="border p-4 rounded shadow hover:shadow-lg transition"
               >
-                <div className="flex justify-between items-center mb-2">
+                <div className="flex justify-between items-start mb-2">
                   <div>
                     <p>Ordered at: {new Date(order.time).toLocaleString()}</p>
                     <p>
                       Status:{" "}
                       <strong
                         className={`
-                        ${
-                          order.statusOfOrder === "READY"
-                            ? "text-green-600"
-                            : order.statusOfOrder === "IN_PROGRESS"
-                            ? "text-orange-500"
-                            : order.statusOfOrder === "WAITING_FOR_CONFIRMATION"
-                            ? "text-blue-600"
-                            : "text-red-500"
-                        }`}
+                          ${
+                            order.statusOfOrder === "READY"
+                              ? "text-green-600"
+                              : order.statusOfOrder === "IN_PROGRESS"
+                              ? "text-orange-500"
+                              : order.statusOfOrder ===
+                                "WAITING_FOR_CONFIRMATION"
+                              ? "text-blue-600"
+                              : "text-red-500"
+                          }`}
                       >
                         {order.statusOfOrder === "WAITING_FOR_CONFIRMATION" &&
                           "Waiting for confirmation"}

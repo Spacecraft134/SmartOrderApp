@@ -1,10 +1,8 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import MenuManager from "../pages/MenuManager";
-
 import { KitchenDashboard } from "../pages/KitchenDashboard";
 import { WaiterDashboard } from "../pages/WaiterDashboard";
 import { CustomerOrdersList } from "../pages/CustomerViews/CustomerOrdersList";
-
 import { CustomerOrder } from "../pages/CustomerViews/CustomerOrder";
 import { TableQRGenerator } from "../pages/QRcode/TableQRGenerator";
 import { AdminLayout } from "../pages/AdminViews/AdminLayout";
@@ -15,7 +13,7 @@ import { Setting } from "../pages/AdminViews/Setting";
 import { LaunchPage } from "../pages/LaunchPage";
 import LoginPage from "../pages/LoginPage";
 import SignUpPage from "../pages/SignUpPage";
-
+import { ThankYou } from "../pages/CustomerViews/ThankyouPage";
 export default function ResturantAppRouter() {
   return (
     <BrowserRouter>
@@ -32,6 +30,7 @@ export default function ResturantAppRouter() {
           path="/guest-orders/:tableNumber"
           element={<CustomerOrdersList />}
         />
+        <Route path="/thank-you/:tableNumber" element={<ThankYou />} />
 
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />

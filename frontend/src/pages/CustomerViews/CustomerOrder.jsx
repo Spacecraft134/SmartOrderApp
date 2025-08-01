@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
@@ -14,11 +14,12 @@ import {
   FiChevronUp,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
+import SockJS from "sockjs-client";
+import { Client } from "@stomp/stompjs";
 
 export function CustomerOrder() {
   const { tableNumber: tableNumberParam } = useParams();
   const navigate = useNavigate();
-
   const [tableID, setTableID] = useState(tableNumberParam || "");
   const [isTableIdLocked, setIsTableIdLocked] = useState(!!tableNumberParam);
   const [menuItems, setMenuItems] = useState([]);
@@ -32,8 +33,11 @@ export function CustomerOrder() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isHelpDropdownOpen, setIsHelpDropdownOpen] = useState(false);
   const [helpReason, setHelpReason] = useState("Need assistance");
+  const [connectionState, setConnectionState] = useState("DISCONNECTED");
 
-  // Define help reasons
+  const clientRef = useRef(null);
+  const subscriptionsRef = useRef({});
+
   const helpReasons = [
     "Need assistance",
     "Need bill",
@@ -43,20 +47,88 @@ export function CustomerOrder() {
     "Other request",
   ];
 
-  // Load menu items once
+  // WebSocket Connection
   useEffect(() => {
-    setIsLoading(true);
-    axios
-      .get("http://localhost:8080/api/menu")
-      .then((res) => {
+    if (!tableID) return;
+
+    const socket = new SockJS("http://localhost:8080/ws");
+    const stompClient = new Client({
+      webSocketFactory: () => socket,
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+      debug: (str) => console.debug(str),
+      onConnect: () => {
+        setConnectionState("CONNECTED");
+        const sub = stompClient.subscribe(
+          `/topic/session-ended/${tableID}`,
+          (message) => {
+            try {
+              const event = JSON.parse(message.body);
+              if (event.eventType === "SESSION_ENDED") {
+                navigate(`/thank-you/${tableID}`);
+              }
+            } catch (err) {
+              console.error("Error parsing message:", err);
+            }
+          }
+        );
+        subscriptionsRef.current.sessionEnded = sub;
+      },
+      onStompError: (frame) => {
+        setConnectionState("ERROR");
+        console.error("STOMP error:", frame);
+      },
+      onWebSocketError: (error) => {
+        setConnectionState("ERROR");
+        console.error("WebSocket error:", error);
+      },
+      onDisconnect: () => {
+        setConnectionState("DISCONNECTED");
+      },
+    });
+
+    stompClient.activate();
+    clientRef.current = stompClient;
+
+    return () => {
+      if (clientRef.current) {
+        if (subscriptionsRef.current.sessionEnded) {
+          subscriptionsRef.current.sessionEnded.unsubscribe();
+        }
+        clientRef.current.deactivate();
+      }
+    };
+  }, [tableID, navigate]);
+
+  // Start session and load menu
+  useEffect(() => {
+    const initialize = async () => {
+      if (!tableID) return;
+
+      try {
+        // Start session
+        await axios.post(
+          `http://localhost:8080/api/tables/${tableID}/start-session`
+        );
+
+        // Load menu
+        const res = await axios.get("http://localhost:8080/api/menu");
         setMenuItems(res.data);
+
+        // Redirect if coming from order page
+        if (tableNumberParam) {
+          navigate(`/guest-orders/${tableID}`);
+        }
+      } catch (error) {
+        toast.error("Failed to initialize: " + error.message);
+      } finally {
         setIsLoading(false);
-      })
-      .catch(() => {
-        toast.error("Failed to load menu items");
-        setIsLoading(false);
-      });
-  }, []);
+      }
+    };
+
+    initialize();
+  }, [tableID, tableNumberParam, navigate]);
 
   const uniqueCategory = [
     "All",
@@ -64,12 +136,10 @@ export function CustomerOrder() {
   ];
 
   const filteredMenu = menuItems.filter((item) => {
-    // First filter by category
     const categoryMatch =
       activeCategory === "All" ||
       (item.category || "Uncategorized") === activeCategory;
 
-    // Then filter by search term (only by name)
     const nameMatch = searchTerm
       ? item.name.toLowerCase().includes(searchTerm.toLowerCase())
       : true;
@@ -159,7 +229,7 @@ export function CustomerOrder() {
       toast.warning("Please enter your Table ID to request help!");
       return;
     }
-    if (helpRequestSending) return; // Prevent multiple clicks
+    if (helpRequestSending) return;
 
     setHelpRequestSending(true);
     axios
@@ -167,15 +237,18 @@ export function CustomerOrder() {
         tableNumber: tableID,
         reason: reason,
       })
-
       .then(() => {
         toast.success("Help request sent! A waiter is on the way.", {
           position: "top-center",
           autoClose: 3000,
         });
         setHelpRequested(true);
-        setIsHelpDropdownOpen(false); // Close dropdown after request
-        setTimeout(() => setHelpRequested(false), 30000); // Reset after 30 seconds
+        setIsHelpDropdownOpen(false);
+        setTimeout(() => setHelpRequested(false), 30000);
+
+        if (reason === "Need bill") {
+          axios.post(`http://localhost:8080/api/tables/${tableID}/end-session`);
+        }
       })
       .catch(() => toast.error("Failed to send help request"))
       .finally(() => setHelpRequestSending(false));
@@ -195,20 +268,22 @@ export function CustomerOrder() {
     }
   }, []);
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-4 border-blue-600"></div>
+          <p className="mt-4 text-gray-600 font-medium">Loading menu...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <ToastContainer
-        position="top-center"
-        autoClose={3000}
-        newestOnTop
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="colored"
-      />
+      <ToastContainer position="top-center" autoClose={3000} />
 
+      {/* Shopping cart button */}
       <motion.button
         onClick={() => setIsCartOpen(true)}
         className="fixed right-6 bottom-6 z-40 bg-blue-600 text-white p-4 rounded-full shadow-xl hover:bg-blue-700 transition-all flex items-center justify-center"
@@ -223,7 +298,7 @@ export function CustomerOrder() {
         )}
       </motion.button>
 
-      {/* Help Request Button with Dropdown */}
+      {/* Help button with dropdown */}
       <div className="fixed left-6 bottom-6 z-40 flex flex-col items-end">
         <AnimatePresence>
           {isHelpDropdownOpen && (
@@ -283,7 +358,7 @@ export function CustomerOrder() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
             <h1 className="text-4xl font-extrabold text-gray-900 mb-2">
-              Welcome to <span className="text-blue-600">RESTURANT NAME</span>
+              Welcome to <span className="text-blue-600">RESTAURANT NAME</span>
             </h1>
             <p className="text-lg text-gray-600">
               Browse our exquisite menu and place your order
@@ -327,7 +402,7 @@ export function CustomerOrder() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search menu items by name..."
-              className="w-full px-5 py-3 rounded-lg border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blueS-200 outline-none transition duration-200 pl-12"
+              className="w-full px-5 py-3 rounded-lg border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition duration-200 pl-12"
             />
             <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-xl" />
             {searchTerm && (
@@ -362,128 +437,104 @@ export function CustomerOrder() {
         </div>
 
         {/* Menu grid */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, i) => (
-              <div
-                key={i}
-                className="bg-white rounded-xl shadow-sm overflow-hidden animate-pulse"
-              >
-                <div className="h-48 bg-gray-200"></div>
-                <div className="p-4">
-                  <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
-                  <div className="h-10 bg-gray-200 rounded"></div>
-                </div>
-              </div>
-            ))}
+        {filteredMenu.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className="bg-gray-200 border-2 border-dashed rounded-xl w-16 h-16 flex items-center justify-center mb-4">
+              <FiSearch className="text-gray-500 text-2xl" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-700 mb-2">
+              No matching items found
+            </h2>
+            <p className="text-gray-500 text-center max-w-md">
+              We couldn't find any menu items matching "{searchTerm}". Try
+              another search term or clear your search to see all items.
+            </p>
+            <button
+              onClick={() => setSearchTerm("")}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Clear Search
+            </button>
           </div>
         ) : (
-          <>
-            {filteredMenu.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16">
-                <div className="bg-gray-200 border-2 border-dashed rounded-xl w-16 h-16 flex items-center justify-center mb-4">
-                  <FiSearch className="text-gray-500 text-2xl" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {filteredMenu.map((item) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200 border border-gray-100 relative"
+              >
+                <div className="h-48 bg-gray-100 flex items-center justify-center relative">
+                  {item.imageUrl ? (
+                    <img
+                      src={
+                        item.imageUrl.startsWith("http")
+                          ? item.imageUrl
+                          : `http://localhost:8080${item.imageUrl}`
+                      }
+                      alt={item.name}
+                      className={`w-full h-full object-cover ${
+                        !item.available ? "opacity-50 grayscale" : ""
+                      }`}
+                    />
+                  ) : (
+                    <div className="text-gray-400 text-sm">
+                      No image available
+                    </div>
+                  )}
+                  {!item.available && (
+                    <span className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 text-xs font-semibold rounded">
+                      Not Available
+                    </span>
+                  )}
                 </div>
-                <h2 className="text-2xl font-bold text-gray-700 mb-2">
-                  No matching items found
-                </h2>
-                <p className="text-gray-500 text-center max-w-md">
-                  We couldn't find any menu items matching "{searchTerm}". Try
-                  another search term or clear your search to see all items.
-                </p>
-                <button
-                  onClick={() => setSearchTerm("")}
-                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Clear Search
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {filteredMenu.map((item) => (
-                  <motion.div
-                    key={item.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200 border border-gray-100 relative"
+
+                <div className="p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3
+                      className={`font-bold text-lg text-gray-900 ${
+                        !item.available ? "line-through text-gray-400" : ""
+                      }`}
+                    >
+                      {item.name}
+                    </h3>
+                    <span
+                      className={`font-bold text-blue-600 ${
+                        !item.available ? "text-gray-400" : ""
+                      }`}
+                    >
+                      ${parseFloat(item.price).toFixed(2)}
+                    </span>
+                  </div>
+
+                  {item.description && (
+                    <p
+                      className={`text-gray-500 text-sm mb-4 line-clamp-2 ${
+                        !item.available ? "text-gray-400" : ""
+                      }`}
+                    >
+                      {item.description}
+                    </p>
+                  )}
+
+                  <button
+                    onClick={() => addToCart(item)}
+                    disabled={!item.available}
+                    className={`w-full py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition duration-200 ${
+                      item.available
+                        ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    }`}
                   >
-                    {/* Image container */}
-                    <div className="h-48 bg-gray-100 flex items-center justify-center relative">
-                      {item.imageUrl ? (
-                        <img
-                          src={
-                            item.imageUrl.startsWith("http")
-                              ? item.imageUrl
-                              : `http://localhost:8080${item.imageUrl}`
-                          }
-                          alt={item.name}
-                          className={`w-full h-full object-cover ${
-                            !item.available ? "opacity-50 grayscale" : ""
-                          }`}
-                        />
-                      ) : (
-                        <div className="text-gray-400 text-sm">
-                          No image available
-                        </div>
-                      )}
-
-                      {/* Not Available badge */}
-                      {!item.available && (
-                        <span className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 text-xs font-semibold rounded">
-                          Not Available
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3
-                          className={`font-bold text-lg text-gray-900 ${
-                            !item.available ? "line-through text-gray-400" : ""
-                          }`}
-                        >
-                          {item.name}
-                        </h3>
-                        <span
-                          className={`font-bold text-blue-600 ${
-                            !item.available ? "text-gray-400" : ""
-                          }`}
-                        >
-                          ${parseFloat(item.price).toFixed(2)}
-                        </span>
-                      </div>
-
-                      {item.description && (
-                        <p
-                          className={`text-gray-500 text-sm mb-4 line-clamp-2 ${
-                            !item.available ? "text-gray-400" : ""
-                          }`}
-                        >
-                          {item.description}
-                        </p>
-                      )}
-
-                      <button
-                        onClick={() => addToCart(item)}
-                        disabled={!item.available}
-                        className={`w-full py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition duration-200 ${
-                          item.available
-                            ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
-                            : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                        }`}
-                      >
-                        <FiPlus />
-                        Add to Order
-                      </button>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            )}
-          </>
+                    <FiPlus />
+                    Add to Order
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         )}
       </div>
 

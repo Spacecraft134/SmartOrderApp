@@ -1,8 +1,22 @@
-// src/components/ThankYou.jsx
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 export function ThankYou() {
+  const { tableNumber } = useParams();
+  const navigate = useNavigate();
+
+  //   useEffect(() => {
+  //     // Clear any session-related data
+  //     localStorage.removeItem(`tableSession_${tableNumber}`);
+
+  //     // // Set a timeout to redirect to home after some time
+  //     // const timer = setTimeout(() => {
+  //     //   navigate("/");
+  //     // }, 30000); // 30 seconds
+
+  //     return () => clearTimeout(timer);
+  //   }, [tableNumber, navigate]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col items-center justify-center p-6">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
