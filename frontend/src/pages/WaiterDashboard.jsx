@@ -262,9 +262,6 @@ export function WaiterDashboard() {
           <h1 className="text-3xl md:text-4xl font-bold mb-2">
             Waiter Dashboard
           </h1>
-          <p className="text-blue-200">
-            Manage requests, orders, and table sessions
-          </p>
         </div>
       </header>
 

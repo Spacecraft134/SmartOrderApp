@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class HelpRequestWebSocketService {
+  
   private final SimpMessagingTemplate messagingTemplate;
 
  

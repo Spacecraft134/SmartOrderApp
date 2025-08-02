@@ -40,6 +40,7 @@ import { Close } from "@mui/icons-material";
 import { CustomerOrder } from "../CustomerViews/CustomerOrder";
 import { WaiterDashboard } from "../WaiterDashboard";
 import { KitchenDashboard } from "../KitchenDashboard";
+import EditableThankYou from "../AdminViews/EditableThankYou";
 
 export function AdminDashboard() {
   const [statsData, setStatsData] = useState(null);
@@ -52,6 +53,8 @@ export function AdminDashboard() {
   const [openCustomer, setOpenCustomer] = useState(false);
   const [openWaiter, setOpenWaiter] = useState(false);
   const [openKitchen, setOpenKitchen] = useState(false);
+
+  const [openThankYou, setOpenThankYou] = useState(false);
 
   useEffect(() => {
     const today = new Date().toLocaleDateString("en-CA");
@@ -350,6 +353,13 @@ export function AdminDashboard() {
         >
           <span className="mr-2">🍳</span> Kitchen View
         </button>
+
+        <button
+          onClick={() => setOpenThankYou(true)}
+          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center"
+        >
+          <span className="mr-2">🙏</span> Thank You Page
+        </button>
       </div>
       <Dialog
         open={openCustomer}
@@ -434,6 +444,33 @@ export function AdminDashboard() {
         <DialogContent className="overflow-y-auto p-0">
           <div className="h-full">
             <KitchenDashboard />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={openThankYou}
+        onClose={() => setOpenThankYou(false)}
+        fullScreen
+        PaperProps={{
+          style: {
+            backgroundColor: "#f8fafc",
+          },
+        }}
+      >
+        <DialogTitle className="flex justify-between items-center bg-white shadow-sm sticky top-0 z-10">
+          <span className="text-xl font-semibold">Edit Thank You Page</span>
+          <IconButton
+            onClick={() => setOpenThankYou(false)}
+            className="hover:bg-gray-100"
+            size="large"
+          >
+            <Close className="text-gray-600" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent className="overflow-y-auto p-0">
+          <div className="h-full">
+            <EditableThankYou />
           </div>
         </DialogContent>
       </Dialog>
