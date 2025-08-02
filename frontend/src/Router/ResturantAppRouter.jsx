@@ -13,6 +13,7 @@ import { LaunchPage } from "../pages/LaunchPage";
 import LoginPage from "../pages/LoginPage";
 import SignUpPage from "../pages/SignUpPage";
 import { ThankYou } from "../pages/CustomerViews/ThankyouPage";
+
 export default function ResturantAppRouter() {
   return (
     <BrowserRouter>

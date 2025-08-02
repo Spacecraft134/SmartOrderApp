@@ -210,7 +210,7 @@ export const LaunchPage = () => {
                         </div>
                       </div>
                       <div className="space-y-3">
-                        {[1, 2, 3, 4].map((item) => (
+                        {[1, 2, 3].map((item) => (
                           <motion.div
                             key={item}
                             className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-800/40 to-gray-800/20 rounded-xl border border-white/5"
@@ -366,48 +366,79 @@ export const LaunchPage = () => {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
               {
                 step: "1",
-                title: "Sign Up & Setup",
+                title: "Instant Sign Up",
                 description:
-                  "Create your account and customize your restaurant profile in minutes",
-                color: "from-blue-500/10 to-cyan-500/10",
+                  "30-second registration with no credit card required",
+
+                color: "from-blue-500/10 to-blue-700/10",
               },
               {
                 step: "2",
-                title: "Integrate Your Systems",
+                title: "Menu Customization",
                 description:
-                  "Connect your POS, payment systems, and other tools seamlessly",
-                color: "from-purple-500/10 to-pink-500/10",
+                  "Upload your menu with photos, prices, and modifiers",
+
+                color: "from-purple-500/10 to-purple-700/10",
               },
               {
                 step: "3",
-                title: "Start Managing",
+                title: "QR Deployment",
                 description:
-                  "Access real-time data and manage your restaurant operations efficiently",
-                color: "from-amber-500/10 to-orange-500/10",
+                  "Print and place QR codes on tables, menus, or walls",
+                color: "from-emerald-500/10 to-emerald-700/10",
               },
             ].map((step, index) => (
-              <motion.div
+              <div
                 key={index}
-                className={`bg-gradient-to-br ${step.color} backdrop-blur-sm rounded-2xl p-8 border border-white/10 relative overflow-hidden`}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.2 }}
+                className={`bg-gradient-to-br ${step.color} rounded-xl p-6 border border-white/10`}
               >
-                <div className="absolute top-4 right-4 text-6xl font-bold text-white/10">
-                  {step.step}
-                </div>
-                <div className="relative z-10">
-                  <div className="text-4xl mb-4">Step {step.step}</div>
-                  <h3 className="text-xl font-bold mb-4">{step.title}</h3>
-                  <p className="text-gray-300">{step.description}</p>
-                </div>
-              </motion.div>
+                <div className="text-2xl font-bold mb-2">Step {step.step}</div>
+                <h3 className="text-lg font-semibold mb-2">{step.title}</h3>
+                <p className="text-gray-300">{step.description}</p>
+              </div>
             ))}
+            <div className="md:col-span-3 bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-xl p-8 border border-white/10">
+              <div className="max-w-4xl mx-auto">
+                <div className="text-2xl font-bold mb-2">Step 4</div>
+                <h3 className="text-2xl font-semibold mb-3">Go Live</h3>
+                <p className="text-gray-300 text-lg">
+                  Start taking orders and managing operations immediately with
+                  our
+                  <span className="font-bold text-white"> support team </span>
+                  ready to assist you
+                </p>
+                <div className="mt-6 flex flex-wrap gap-4">
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center mr-2">
+                      ✓
+                    </div>
+                    <span>Real-time order tracking</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center mr-2">
+                      ✓
+                    </div>
+                    <span>Instant customer notifications</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center mr-2">
+                      ✓
+                    </div>
+                    <span>No setup fees</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center mr-2">
+                      ✓
+                    </div>
+                    <span>All for Free</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
