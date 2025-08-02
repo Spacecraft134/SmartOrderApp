@@ -47,7 +47,6 @@ export function CustomerOrder() {
     "Other request",
   ];
 
-  // WebSocket Connection
   useEffect(() => {
     if (!tableID) return;
 
@@ -65,7 +64,8 @@ export function CustomerOrder() {
           (message) => {
             try {
               const event = JSON.parse(message.body);
-              if (event.eventType === "SESSION_ENDED") {
+              // Only navigate if the session was properly ended
+              if (event.eventType === "SESSION_PROPERLY_ENDED") {
                 navigate(`/thank-you/${tableID}`);
               }
             } catch (err) {
@@ -101,33 +101,32 @@ export function CustomerOrder() {
     };
   }, [tableID, navigate]);
 
-  // Start session and load menu
+  // Load menu - Always load menu regardless of tableID
   useEffect(() => {
-    const initialize = async () => {
-      if (!tableID) return;
-
+    const loadMenu = async () => {
       try {
-        // Start session
-        await axios.post(
-          `http://localhost:8080/api/tables/${tableID}/start-session`
-        );
-
-        // Load menu
         const res = await axios.get("http://localhost:8080/api/menu");
         setMenuItems(res.data);
 
-        // Redirect if coming from order page
-        if (tableNumberParam) {
-          navigate(`/guest-orders/${tableID}`);
+        // Only try to start session if we have a tableID
+        if (tableID) {
+          await axios.post(
+            `http://localhost:8080/api/tables/${tableID}/start-session`
+          );
+
+          // Redirect if coming from order page
+          if (tableNumberParam) {
+            navigate(`/guest-orders/${tableID}`);
+          }
         }
       } catch (error) {
-        toast.error("Failed to initialize: " + error.message);
+        toast.error("Failed to load menu: " + error.message);
       } finally {
         setIsLoading(false);
       }
     };
 
-    initialize();
+    loadMenu();
   }, [tableID, tableNumberParam, navigate]);
 
   const uniqueCategory = [
@@ -189,7 +188,7 @@ export function CustomerOrder() {
 
   const handleSubmitOrder = () => {
     if (!tableID) {
-      toast.warning("Table ID is missing!");
+      toast.warning("Please enter your Table ID before placing an order!");
       return;
     }
     if (cart.length === 0) {
@@ -664,16 +663,18 @@ export function CustomerOrder() {
                 </p>
                 <button
                   onClick={handleSubmitOrder}
-                  disabled={isSubmitting || cart.length === 0}
+                  disabled={isSubmitting || cart.length === 0 || !tableID}
                   className={`w-full py-3 rounded-lg font-bold text-white transition duration-200 ${
                     isSubmitting
                       ? "bg-gray-400 cursor-not-allowed"
-                      : cart.length === 0
+                      : cart.length === 0 || !tableID
                       ? "bg-gray-300 cursor-not-allowed"
                       : "bg-blue-600 hover:bg-blue-700"
                   }`}
                 >
-                  {isSubmitting ? (
+                  {!tableID ? (
+                    "Enter Table ID to Order"
+                  ) : isSubmitting ? (
                     <span className="flex items-center justify-center">
                       <svg
                         className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"

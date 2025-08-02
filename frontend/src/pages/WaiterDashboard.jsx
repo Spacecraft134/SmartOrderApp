@@ -234,6 +234,27 @@ export function WaiterDashboard() {
       return new Date(a.requestTime) - new Date(b.requestTime);
     });
 
+  // Add this function to the WaiterDashboard component
+  const processBillAndEndSession = async (tableNumber) => {
+    try {
+      // First mark the bill as processed
+      await axios.post(
+        `http://localhost:8080/api/tables/${tableNumber}/process-bill`
+      );
+
+      // Then end the session
+      await axios.post(
+        `http://localhost:8080/api/tables/${tableNumber}/end-session`
+      );
+
+      toast.success(
+        `Bill processed and session ended for Table ${tableNumber}`
+      );
+    } catch (error) {
+      toast.error("Failed to process bill and end session");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <header className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-8 px-6 shadow-xl">
@@ -492,11 +513,11 @@ export function WaiterDashboard() {
                   </h3>
                   <div className="mt-auto flex space-x-2 w-full">
                     <button
-                      onClick={() => endSession(table)}
+                      onClick={() => processBillAndEndSession(table)}
                       className="flex-1 flex items-center justify-center gap-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm transition-colors"
                     >
                       <FiPower size={14} />
-                      End
+                      Process Bill & End
                     </button>
                     <Link
                       to={`/customerOrder/${table}`}

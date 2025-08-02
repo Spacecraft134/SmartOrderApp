@@ -17,6 +17,8 @@ public class TableSession {
   private String tableNumber;
   
   private boolean sessionActive = true;
+  private boolean billProcessed= false;
+
 
   public String getTableNumber() {
     return tableNumber;
@@ -34,8 +36,17 @@ public class TableSession {
     this.sessionActive = sessionActive;
   }
 
+  public boolean isBillProcessed() {
+    return billProcessed;
+  }
+
+  public void setBillProcessed(boolean billProcessed) {
+    this.billProcessed = billProcessed;
+  }
+
   @Override
   public String toString() {
-    return "TableSession [tableNumber=" + tableNumber + ", sessionActive=" + sessionActive + "]";
+    return "TableSession [id=" + id + ", tableNumber=" + tableNumber + ", sessionActive="
+        + sessionActive + ", billProcessed=" + billProcessed + "]";
   }
 }

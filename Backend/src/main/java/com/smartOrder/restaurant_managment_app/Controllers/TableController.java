@@ -48,10 +48,33 @@ public class TableController {
 
         if (!table.isSessionActive()) {
             table.setSessionActive(true);
+            table.setBillProcessed(false); // Reset bill status when starting new session
             tableRepository.save(table);
             broadcastTableUpdate(tableNumber, "SESSION_STARTED");
         }
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{tableNumber}/process-bill")
+    public ResponseEntity<?> processBill(@PathVariable String tableNumber) {
+        Optional<TableSession> tableOpt = tableRepository.findByTableNumber(tableNumber);
+        if (tableOpt.isPresent()) {
+            TableSession table = tableOpt.get();
+            if (!table.isBillProcessed()) {
+                table.setBillProcessed(true);
+                tableRepository.save(table);
+                
+                // Notify customer that bill has been processed
+                messagingTemplate.convertAndSend("/topic/bill-processed/" + tableNumber,
+                    Map.of(
+                        "eventType", "BILL_PROCESSED",
+                        "tableNumber", tableNumber,
+                        "timestamp", System.currentTimeMillis()
+                    ));
+            }
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.notFound().build();
     }
 
     @PostMapping("/{tableNumber}/end-session")
@@ -60,20 +83,35 @@ public class TableController {
         if (tableOpt.isPresent()) {
             TableSession table = tableOpt.get();
             if (table.isSessionActive()) {
-                table.setSessionActive(false);
-                tableRepository.save(table);
-                broadcastTableUpdate(tableNumber, "SESSION_ENDED");
-                
-                // Notify customer to redirect to thank you page
-                messagingTemplate.convertAndSend("/topic/session-ended/" + tableNumber, 
-                    Map.of(
-                        "eventType", "SESSION_ENDED", 
-                        "tableNumber", tableNumber,
-                        "timestamp", System.currentTimeMillis()
-                    ));
+                if (table.isBillProcessed()) {
+                    table.setSessionActive(false);
+                    tableRepository.save(table);
+                    broadcastTableUpdate(tableNumber, "SESSION_ENDED");
+                    
+                    // Notify customer to redirect to thank you page
+                    messagingTemplate.convertAndSend("/topic/session-ended/" + tableNumber, 
+                        Map.of(
+                            "eventType", "SESSION_PROPERLY_ENDED", 
+                            "tableNumber", tableNumber,
+                            "timestamp", System.currentTimeMillis()
+                        ));
+                    return ResponseEntity.ok().build();
+                } else {
+                    return ResponseEntity.badRequest().body("Bill must be processed before ending session");
+                }
             }
+            return ResponseEntity.ok().build();
         }
-        return ResponseEntity.ok().build();
+        return ResponseEntity.notFound().build();
+    }
+
+    @PostMapping("/{tableNumber}/process-and-end")
+    public ResponseEntity<?> processBillAndEndSession(@PathVariable String tableNumber) {
+        ResponseEntity<?> processResponse = processBill(tableNumber);
+        if (processResponse.getStatusCode().is2xxSuccessful()) {
+            return endSession(tableNumber);
+        }
+        return processResponse;
     }
 
     private void broadcastTableUpdate(String tableNumber, String eventType) {      
