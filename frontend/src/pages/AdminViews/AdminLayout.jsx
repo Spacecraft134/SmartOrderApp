@@ -36,11 +36,6 @@ export function AdminLayout() {
       icon: <FiImage className="text-lg" />,
     },
     {
-      path: "/admin/upsell",
-      name: "Upsell",
-      icon: <FiTrendingUp className="text-lg" />,
-    },
-    {
       path: "/admin/setting",
       name: "Settings",
       icon: <FiSettings className="text-lg" />,
