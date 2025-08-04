@@ -361,7 +361,7 @@ export const LaunchPage = () => {
               How DineFlow Works
             </h2>
             <p className="text-gray-400 max-w-2xl mx-auto">
-              Simple setup, powerful results - transform your restaurant in 3
+              Simple setup, powerful results - transform your restaurant in 4
               easy steps
             </p>
           </motion.div>
