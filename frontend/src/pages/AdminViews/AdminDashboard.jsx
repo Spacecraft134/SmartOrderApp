@@ -41,6 +41,9 @@ import { CustomerOrder } from "../CustomerViews/CustomerOrder";
 import { WaiterDashboard } from "../WaiterDashboard";
 import { KitchenDashboard } from "../KitchenDashboard";
 import EditableThankYou from "../AdminViews/EditableThankYou";
+import { useLocation } from "react-router-dom";
+import api from "../Utils/api";
+import { useAuth } from "../Context/AuthContext";
 
 export function AdminDashboard() {
   const [statsData, setStatsData] = useState(null);
@@ -56,49 +59,74 @@ export function AdminDashboard() {
 
   const [openThankYou, setOpenThankYou] = useState(false);
 
+  const location = useLocation();
+  const adminName = location.state?.name || "Admin";
+  const { user } = useAuth();
   useEffect(() => {
-    const today = new Date().toLocaleDateString("en-CA");
-    axios
-      .get(`http://localhost:8080/api/orders/daily/${today}`)
-      .then((res) => setStatsData(res.data));
-    axios
-      .get(`http://localhost:8080/api/orders/busy-hours/${today}`)
-      .then((res) => setBusyHours(res.data));
-    axios
-      .get(`http://localhost:8080/api/orders/top-items/${today}`)
-      .then((res) => setTopItems(res.data.slice(0, 6)));
-    axios
-      .get(`http://localhost:8080/api/orders/category-sales/${today}`)
-      .then((res) => {
-        const rawData = res.data;
-        const labels = Object.keys(rawData);
-        const data = Object.values(rawData);
-        setCategorySales({ labels, data });
-      });
-  }, []);
+    if (!user) return;
+    const fetchData = async () => {
+      try {
+        const today = new Date().toLocaleDateString("en-CA");
+
+        // Use Promise.all for parallel requests
+        const [dailyRes, busyRes, topRes, categoryRes] = await Promise.all([
+          api.get(`/api/orders/daily/${today}`),
+          api.get(`/api/orders/busy-hours/${today}`),
+          api.get(`/api/orders/top-items/${today}`),
+          api.get(`/api/orders/category-sales/${today}`),
+        ]);
+
+        setStatsData(dailyRes.data);
+        setBusyHours(busyRes.data);
+        setTopItems(topRes.data.slice(0, 6));
+
+        const rawData = categoryRes.data;
+        setCategorySales({
+          labels: Object.keys(rawData),
+          data: Object.values(rawData),
+        });
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+        // Handle unauthorized (403) errors
+        if (error.response?.status === 403) {
+          localStorage.removeItem("jwtToken");
+          window.location.href = "/login";
+        }
+      }
+    };
+
+    fetchData();
+  }, [user]);
 
   useEffect(() => {
-    const today = new Date();
-    const todayStr = today.toLocaleDateString("en-CA");
+    const fetchSalesData = async () => {
+      try {
+        const today = new Date();
+        const todayStr = today.toLocaleDateString("en-CA");
 
-    if (timeRange === "today") {
-      axios
-        .get(`http://localhost:8080/api/orders/sales-performance/${todayStr}`)
-        .then((res) => setSalesData(res.data));
-    } else if (timeRange === "week") {
-      axios
-        .get(`http://localhost:8080/api/orders/weekly-sales-performance`)
-        .then((res) => setSalesData(res.data));
-    } else if (timeRange === "month") {
-      const year = today.getFullYear();
-      const month = today.getMonth() + 1;
+        let response;
+        if (timeRange === "today") {
+          response = await api.get(`/api/orders/sales-performance/${todayStr}`);
+        } else if (timeRange === "week") {
+          response = await api.get(`/api/orders/weekly-sales-performance`);
+        } else if (timeRange === "month") {
+          const year = today.getFullYear();
+          const month = today.getMonth() + 1;
+          response = await api.get(
+            `/api/orders/monthly-sales-performance/${year}/${month}`
+          );
+        }
+        setSalesData(response.data);
+      } catch (error) {
+        console.error("Failed to fetch sales data:", error);
+        if (error.response?.status === 403) {
+          localStorage.removeItem("jwtToken");
+          window.location.href = "/login";
+        }
+      }
+    };
 
-      axios
-        .get(
-          `http://localhost:8080/api/orders/monthly-sales-performance/${year}/${month}`
-        )
-        .then((res) => setSalesData(res.data));
-    }
+    fetchSalesData();
   }, [timeRange]);
 
   if (!statsData || !busyHour || !salesData)
@@ -286,10 +314,8 @@ export function AdminDashboard() {
     <div className="space-y-6 p-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Dashboard Overview</h1>
-          <p className="text-gray-500">
-            Welcome back! Here's what's happening today.
-          </p>
+          <h1 className="text-3xl font-bold">Welcome, {adminName}!</h1>
+          <p className="text-gray-500">Here's your dashboard overview.</p>
         </div>
         <button className="p-2 bg-gray-100 rounded-full">
           <FiBell size={20} />

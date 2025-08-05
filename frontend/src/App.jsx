@@ -1,6 +1,12 @@
-import ResturantAppRouter from "../src/Router/ResturantAppRouter";
+import { AuthProvider } from "./pages/Context/AuthContext";
+import RestaurantAppRouter from "../src/Router/ResturantAppRouter";
+
 function App() {
-  return <ResturantAppRouter />;
+  return (
+    <AuthProvider>
+      <RestaurantAppRouter />
+    </AuthProvider>
+  );
 }
 
 export default App;

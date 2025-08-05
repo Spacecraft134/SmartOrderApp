@@ -16,10 +16,37 @@ const SignUpPage = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Signup data:", formData);
-    navigate("/dashboard");
+    try {
+      const response = await fetch("http://localhost:8080/register-admin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: formData.email,
+          password: formData.password,
+          role: "ADMIN",
+        }),
+        credentials: "include", // Important for CORS with credentials
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        localStorage.setItem("jwtToken", data.token);
+        localStorage.setItem("userRole", data.role);
+        navigate("/admin", {
+          state: { name: formData.name },
+        });
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || "Registration failed");
+      }
+    } catch (err) {
+      setError("Something went wrong. Try again later.");
+      console.error(err);
+    }
   };
 
   return (

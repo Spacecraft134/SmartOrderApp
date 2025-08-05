@@ -2,16 +2,31 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 
+import { useAuth } from "../pages/Context/AuthContext";
+
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Login attempt with:", { email, password });
-    navigate("/dashboard");
+
+    const { success, role } = await login({ username: email, password });
+
+    if (success) {
+      const redirectMap = {
+        ADMIN: "/admin",
+        WAITER: "/waiter-dashboard",
+        KITCHEN: "/kitchen-dashboard",
+        GUEST: "/customer/menu",
+      };
+      navigate(redirectMap[role] || "/");
+    } else {
+      setError("Login failed. Please try again.");
+    }
   };
 
   return (
