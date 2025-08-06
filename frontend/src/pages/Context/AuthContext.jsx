@@ -68,8 +68,12 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // In your AuthContext.js
   const logout = () => {
-    clearAuth();
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("userData");
+    delete api.defaults.headers.common["Authorization"];
+    setUser(null);
     navigate("/login");
   };
 
