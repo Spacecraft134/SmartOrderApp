@@ -15,6 +15,7 @@ import SignUpPage from "../pages/SignUpPage";
 import { ThankYou } from "../pages/CustomerViews/ThankyouPage";
 import ProtectedRoute from "../Router/ProtectedRoute ";
 import { Route, Routes } from "react-router-dom";
+import ErrorPage from "../pages/Utils/ErrorPage";
 
 export default function ResturantAppRouter() {
   return (
@@ -76,6 +77,7 @@ export default function ResturantAppRouter() {
           <Route path="poster" element={<PosterEditor />} />
           <Route path="setting" element={<Setting />} />
         </Route>
+        <Route path="/error" element={<ErrorPage />} />
       </Routes>
     </AuthProvider>
   );

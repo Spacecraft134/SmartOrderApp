@@ -71,32 +71,47 @@ export function AuthProvider({ children }) {
   const login = async (credentials) => {
     try {
       const response = await api.post("/login", credentials);
-      const { token, name, role, username } = response.data;
 
-      const userData = {
-        name,
-        role,
-        email: username,
-        token,
-      };
+      if (response.data?.success) {
+        // Additional role check
+        if (response.data.role !== "ADMIN") {
+          return {
+            success: false,
+            error: "Unauthorized role",
+          };
+        }
 
-      localStorage.setItem("token", token);
-      localStorage.setItem("userData", JSON.stringify(userData));
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      setUser(userData);
+        const { token, username, role, name } = response.data;
 
-      // Broadcast login to other tabs
-      new BroadcastChannel(AUTH_CHANNEL).postMessage({
-        type: "LOGIN",
-        token,
-      });
+        const userData = {
+          name,
+          role,
+          email: username,
+          token,
+        };
 
-      return { success: true, user: userData };
-    } catch (error) {
-      console.error("Login error:", error);
+        localStorage.setItem("token", token);
+        localStorage.setItem("userData", JSON.stringify(userData));
+        api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+        setUser(userData);
+
+        return {
+          success: true,
+          user: userData,
+          error: null,
+        };
+      }
+
       return {
         success: false,
-        error: error.response?.data?.message || "Login failed",
+        user: null,
+        error: response.data?.message || "Login failed",
+      };
+    } catch (error) {
+      return {
+        success: false,
+        user: null,
+        error: error.response?.data?.message || "Network error",
       };
     }
   };

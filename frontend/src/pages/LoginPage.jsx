@@ -8,12 +8,49 @@ const LoginPage = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({
+    email: "",
+    password: "",
+  });
   const navigate = useNavigate();
-  const { login, user } = useAuth();
+  const { login } = useAuth();
+
+  const validateForm = () => {
+    let isValid = true;
+    const newErrors = {
+      email: "",
+      password: "",
+    };
+
+    if (!email) {
+      newErrors.email = "Email is required";
+      isValid = false;
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = "Email is invalid";
+      isValid = false;
+    }
+
+    if (!password) {
+      newErrors.password = "Password is required";
+      isValid = false;
+    } else if (password.length < 8) {
+      newErrors.password = "Password must be at least 8 characters";
+      isValid = false;
+    }
+
+    setFieldErrors(newErrors);
+    return isValid;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
     setError("");
+
+    if (!validateForm()) {
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -22,16 +59,34 @@ const LoginPage = () => {
         password,
       });
 
-      if (!result.success) {
-        throw new Error(result.error || "Login failed");
+      if (!result?.success) {
+        setError(result?.error || "Invalid email or password");
+        return;
       }
 
-      // Redirect based on role
-      const redirectPath =
-        result.user.role === "ADMIN" ? "/admin" : "/dashboard";
-      navigate(redirectPath);
+      if (result.user?.role === "ADMIN") {
+        navigate("/admin", {
+          replace: true,
+          state: { from: "login" },
+        });
+      } else {
+        navigate("/error", {
+          replace: true,
+          state: {
+            error: "Unauthorized access",
+            returnPath: "/login",
+          },
+        });
+      }
     } catch (err) {
-      setError(err.message);
+      console.error("Login error:", err);
+      navigate("/error", {
+        replace: true,
+        state: {
+          error: err.message || "Login failed",
+          returnPath: "/login",
+        },
+      });
     } finally {
       setIsLoading(false);
     }
@@ -76,7 +131,7 @@ const LoginPage = () => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <div className="mb-5">
               <label className="block text-gray-300 mb-2 text-sm">
                 Email Address
@@ -84,12 +139,20 @@ const LoginPage = () => {
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setFieldErrors({ ...fieldErrors, email: "" });
+                }}
+                className={`w-full p-3.5 rounded-xl bg-white/5 border ${
+                  fieldErrors.email ? "border-red-500" : "border-white/10"
+                } focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all`}
                 placeholder="your@email.com"
                 required
                 autoComplete="username"
               />
+              {fieldErrors.email && (
+                <p className="mt-1 text-sm text-red-500">{fieldErrors.email}</p>
+              )}
             </div>
 
             <div className="mb-6">
@@ -105,13 +168,23 @@ const LoginPage = () => {
               <input
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setFieldErrors({ ...fieldErrors, password: "" });
+                }}
+                className={`w-full p-3.5 rounded-xl bg-white/5 border ${
+                  fieldErrors.password ? "border-red-500" : "border-white/10"
+                } focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all`}
                 placeholder="••••••••"
                 required
                 autoComplete="current-password"
                 minLength="8"
               />
+              {fieldErrors.password && (
+                <p className="mt-1 text-sm text-red-500">
+                  {fieldErrors.password}
+                </p>
+              )}
             </div>
 
             <motion.button
