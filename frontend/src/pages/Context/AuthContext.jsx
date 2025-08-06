@@ -72,7 +72,7 @@ export function AuthProvider({ children }) {
     try {
       const response = await api.post("/login", credentials);
 
-      if (response.data?.success) {
+      if (response.data?.token) {
         // Additional role check
         if (response.data.role !== "ADMIN") {
           return {
@@ -116,16 +116,30 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logout = () => {
-    // Broadcast logout to other tabs
-    new BroadcastChannel(AUTH_CHANNEL).postMessage({
-      type: "LOGOUT",
-    });
+  // In your AuthContext.js
+  const logout = async () => {
+    try {
+      // 1. First try to call backend logout
+      await api.post("/logout", null, { withCredentials: true });
+    } catch (error) {
+      console.error("Backend logout failed:", error);
+      // Continue with frontend cleanup even if backend fails
+    } finally {
+      // 2. Broadcast logout to other tabs
+      new BroadcastChannel(AUTH_CHANNEL).postMessage({
+        type: "LOGOUT",
+      });
 
-    // Fallback for browsers without BroadcastChannel
-    localStorage.setItem("logout_event", Date.now());
+      // 3. Fallback for browsers without BroadcastChannel
+      localStorage.setItem("logout_event", Date.now());
 
-    clearAuth();
+      // 4. Clear frontend auth state
+      localStorage.removeItem("token");
+      localStorage.removeItem("userData");
+      delete api.defaults.headers.common["Authorization"];
+      setUser(null);
+      navigate("/login");
+    }
   };
 
   return (

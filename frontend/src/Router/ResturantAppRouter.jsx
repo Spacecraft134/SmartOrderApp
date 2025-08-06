@@ -16,6 +16,8 @@ import { ThankYou } from "../pages/CustomerViews/ThankyouPage";
 import ProtectedRoute from "../Router/ProtectedRoute ";
 import { Route, Routes } from "react-router-dom";
 import ErrorPage from "../pages/Utils/ErrorPage";
+import ForgotPasswordPage from "../pages/ForgotPasswordPage";
+import ResetPasswordPage from "../pages/ResetPasswordPage";
 
 export default function ResturantAppRouter() {
   return (

@@ -48,13 +48,13 @@ export function AdminLayout() {
     },
   ];
 
+  // In AdminLayout.jsx
   const handleLogout = async () => {
     try {
-      await axios.post("/api/auth/logout", null, { withCredentials: true });
-      logout();
+      // Call the logout function from AuthContext
+      await logout();
     } catch (error) {
-      console.error("Logout failed:", error);
-      logout();
+      console.error("Logout error:", error);
     } finally {
       setShowLogoutModal(false);
     }

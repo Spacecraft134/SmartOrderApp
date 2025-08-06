@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import api from "../pages/Utils/api";
+import { useAuth } from "../pages/Context/AuthContext";
 export default function MenuManager() {
   const [menuItems, setMenuItems] = useState([]);
   const [newItem, setNewItem] = useState({
@@ -37,18 +38,23 @@ export default function MenuManager() {
     api
       .get("/api/menu")
       .then((res) => {
+        console.log("Fetched menu items:", res.data); // Debug log
         setMenuItems(res.data);
         setIsLoading(false);
       })
       .catch((error) => {
-        console.error("Error fetching menu:", error);
-        toast.error(
-          error.response?.data?.message || "Failed to load menu items"
-        );
+        console.error("Error details:", error.response);
+        if (error.response?.status === 401) {
+          toast.error("Session expired. Please login again.");
+          logout();
+        } else {
+          toast.error(
+            error.response?.data?.message || "Failed to load menu items"
+          );
+        }
         setIsLoading(false);
       });
   };
-
   useEffect(() => fetchMenuItems(), []);
 
   // Add new item
@@ -65,7 +71,7 @@ export default function MenuManager() {
       "item",
       JSON.stringify({
         name: newItem.name,
-        price: newItem.price,
+        price: parseFloat(newItem.price), // Ensure number type
         description: newItem.description,
         category: newItem.category,
       })
@@ -80,22 +86,31 @@ export default function MenuManager() {
         headers: { "Content-Type": "multipart/form-data" },
       })
       .then(() => {
-        fetchMenuItems();
-        setNewItem({
-          name: "",
-          price: "",
-          description: "",
-          category: "",
-          image: null,
-        });
-        setPreviewImage(null);
         toast.success("Item added successfully!");
+        fetchMenuItems(); // Refresh the list
+        resetForm();
       })
       .catch((error) => {
-        console.error("Add item error:", error);
-        toast.error(error.response?.data?.message || "Failed to add item");
+        console.error("Add error details:", error.response);
+        if (error.response?.status === 401) {
+          toast.error("Session expired. Please login again.");
+          logout();
+        } else {
+          toast.error(error.response?.data?.message || "Failed to add item");
+        }
       })
       .finally(() => setIsAdding(false));
+  };
+
+  const resetForm = () => {
+    setNewItem({
+      name: "",
+      price: "",
+      description: "",
+      category: "",
+      image: null,
+    });
+    setPreviewImage(null);
   };
 
   // Update item
@@ -173,9 +188,8 @@ export default function MenuManager() {
       description: item.description || "",
       imageUrl: item.imageUrl || "",
     });
-    setEditPreviewImage(
-      item.imageUrl ? `http://localhost:8080${item.imageUrl}` : null
-    );
+    // Remove hardcoded localhost:8080
+    setEditPreviewImage(item.imageUrl || null);
     setEditImageFile(null);
   };
 

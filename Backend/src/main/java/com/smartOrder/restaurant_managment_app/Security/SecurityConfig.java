@@ -14,7 +14,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 
 @Configuration
@@ -39,7 +39,8 @@ public class SecurityConfig {
                     "/register-admin", 
                     "/api/auth/validate", 
                     "/api/auth/me",
-                    "/uploads/**"  // Make uploads public if they contain images/files
+                    "/uploads/**",
+                    "/logout"  
                 ).permitAll()
                 .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN") 
                 .requestMatchers("/api/**").authenticated() 
@@ -47,6 +48,17 @@ public class SecurityConfig {
             )
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            )
+            // Add logout configuration
+            .logout(logout -> logout
+                .logoutUrl("/logout")  // Matches your @PostMapping
+                .logoutSuccessHandler((request, response, authentication) -> {
+                    response.setStatus(HttpServletResponse.SC_OK);
+                })
+                .invalidateHttpSession(false)  
+                .deleteCookies("JSESSIONID", "token") 
+                .clearAuthentication(true)
+                .permitAll()
             )
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
