@@ -78,6 +78,8 @@ export default function ResturantAppRouter() {
           <Route path="setting" element={<Setting />} />
         </Route>
         <Route path="/error" element={<ErrorPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
       </Routes>
     </AuthProvider>
   );

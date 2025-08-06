@@ -1,33 +1,41 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import api from "../utils/api";
 
-const ForgotPasswordPage = () => {
-  const [email, setEmail] = useState("");
+const ResetPasswordPage = () => {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { token } = useParams();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
 
-    if (!email) {
-      setError("Email is required");
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      await api.post("/auth/forgot-password", { email });
-      setSuccess("Password reset link sent to your email");
+      await api.post(`/auth/reset-password/${token}`, { password });
+      setSuccess("Password updated successfully");
+      setTimeout(() => navigate("/login"), 2000);
     } catch (err) {
       console.error("Error:", err);
-      setError(err.response?.data?.message || "Failed to send reset link");
+      setError(err.response?.data?.message || "Failed to reset password");
     } finally {
       setIsLoading(false);
     }
@@ -48,18 +56,11 @@ const ForgotPasswordPage = () => {
           >
             <span className="font-bold text-xl text-white">DF</span>
           </motion.div>
-          <h1 className="text-3xl font-bold">Reset Your Password</h1>
+          <h1 className="text-3xl font-bold">Set New Password</h1>
           <p className="text-gray-400 mt-2">
-            Enter your email to receive a reset link
+            Create a new password for your account
           </p>
         </div>
-
-        <Link
-          to="/login"
-          className="text-sm text-cyan-400 hover:text-cyan-300 transition mb-4 inline-block"
-        >
-          ← Back to Login
-        </Link>
 
         <motion.div
           className="bg-gradient-to-b from-gray-900/80 to-gray-900 backdrop-blur-xl rounded-2xl p-8 border border-white/10 shadow-2xl"
@@ -80,18 +81,33 @@ const ForgotPasswordPage = () => {
           )}
 
           <form onSubmit={handleSubmit} noValidate>
-            <div className="mb-6">
+            <div className="mb-5">
               <label className="block text-gray-300 mb-2 text-sm">
-                Email Address
+                New Password
               </label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
-                placeholder="your@email.com"
+                placeholder="••••••••"
                 required
-                autoComplete="email"
+                minLength="8"
+              />
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-gray-300 mb-2 text-sm">
+                Confirm Password
+              </label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
+                placeholder="••••••••"
+                required
+                minLength="8"
               />
             </div>
 
@@ -126,20 +142,19 @@ const ForgotPasswordPage = () => {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  Sending...
+                  Updating...
                 </span>
               ) : (
-                "Send Reset Link"
+                "Reset Password"
               )}
             </motion.button>
 
             <div className="text-center text-gray-400 text-sm">
-              Remember your password?{" "}
               <Link
                 to="/login"
                 className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
               >
-                Sign in
+                Back to Login
               </Link>
             </div>
           </form>
@@ -149,4 +164,4 @@ const ForgotPasswordPage = () => {
   );
 };
 
-export default ForgotPasswordPage;
+export default ResetPasswordPage;

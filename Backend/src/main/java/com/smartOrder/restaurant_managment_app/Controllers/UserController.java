@@ -5,7 +5,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -69,38 +68,19 @@ public class UserController {
             );
             
             Users authenticatedUser = userService.findByUsername(user.getUsername());
-            
-            // Add role validation at backend level
-            if (!authenticatedUser.getRole().equals("ADMIN")) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of(
-                        "success", false,
-                        "message", "Unauthorized role"
-                    ));
-            }
-            
             UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUsername());
             String token = jwtService.generateToken(userDetails);
             
             return ResponseEntity.ok(Map.of(
                 "token", token,
                 "username", authenticatedUser.getUsername(),
-                "role", authenticatedUser.getRole(),
-                "name", authenticatedUser.getName(),
-                "success", true
+                "role", authenticatedUser.getRole().name(),
+                "name", authenticatedUser.getName()
             ));
-        } catch (BadCredentialsException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(Map.of(
-                    "success", false,
-                    "message", "Invalid credentials"
-                ));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of(
-                    "success", false,
-                    "message", "Login failed"
-                ));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                Map.of("message", "Login failed: " + e.getMessage())
+            );
         }
     }
 }
