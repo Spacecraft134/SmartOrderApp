@@ -39,16 +39,23 @@ public class UserService {
           
           UserDetails userDetails = (UserDetails) authentication.getPrincipal();
           String token = jwtService.generateToken(userDetails);
-          String role = userDetails.getAuthorities().iterator().next().getAuthority();
+          
+          // Extract role without ROLE_ prefix
+          String role = userDetails.getAuthorities().iterator().next().getAuthority()
+                       .replace("ROLE_", "");
           
           Map<String, String> response = new HashMap<>();
           response.put("token", token);
-          response.put("role", role.replace("ROLE_", ""));
+          response.put("role", role);
           response.put("username", userDetails.getUsername());
           
           return response;
       } catch (BadCredentialsException e) {
           throw new RuntimeException("Invalid username or password");
       }
+  }
+    
+    public Users findByUsername(String username) {
+      return userRepo.findByUsername(username);
   }
 }

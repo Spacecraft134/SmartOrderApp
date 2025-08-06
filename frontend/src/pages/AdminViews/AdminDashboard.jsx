@@ -46,6 +46,12 @@ import api from "../Utils/api";
 import { useAuth } from "../Context/AuthContext";
 
 export function AdminDashboard() {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState({
+    stats: true,
+    sales: true,
+    categories: true,
+  });
   const [statsData, setStatsData] = useState(null);
   const [busyHour, setBusyHours] = useState(null);
   const [topItems, setTopItems] = useState([]);
@@ -53,22 +59,25 @@ export function AdminDashboard() {
   const [categorySales, setCategorySales] = useState({ labels: [], data: [] });
   const [timeRange, setTimeRange] = useState("today");
 
+  // Modal states
   const [openCustomer, setOpenCustomer] = useState(false);
   const [openWaiter, setOpenWaiter] = useState(false);
   const [openKitchen, setOpenKitchen] = useState(false);
-
   const [openThankYou, setOpenThankYou] = useState(false);
 
-  const location = useLocation();
-  const adminName = location.state?.name || "Admin";
-  const { user } = useAuth();
-  useEffect(() => {
-    if (!user) return;
-    const fetchData = async () => {
-      try {
-        const today = new Date().toLocaleDateString("en-CA");
+  const [adminName, setAdminName] = useState("Admin");
 
-        // Use Promise.all for parallel requests
+  useEffect(() => {
+    if (!user) {
+      window.location.href = "/login";
+      return;
+    }
+
+    const fetchInitialData = async () => {
+      try {
+        const userName = user?.name || "Admin";
+        setAdminName(userName);
+        const today = new Date().toLocaleDateString("en-CA");
         const [dailyRes, busyRes, topRes, categoryRes] = await Promise.all([
           api.get(`/api/orders/daily/${today}`),
           api.get(`/api/orders/busy-hours/${today}`),
@@ -79,50 +88,49 @@ export function AdminDashboard() {
         setStatsData(dailyRes.data);
         setBusyHours(busyRes.data);
         setTopItems(topRes.data.slice(0, 6));
-
-        const rawData = categoryRes.data;
         setCategorySales({
-          labels: Object.keys(rawData),
-          data: Object.values(rawData),
+          labels: Object.keys(categoryRes.data),
+          data: Object.values(categoryRes.data),
         });
       } catch (error) {
-        console.error("Failed to fetch data:", error);
-        // Handle unauthorized (403) errors
-        if (error.response?.status === 403) {
-          localStorage.removeItem("jwtToken");
+        console.error("Initial data fetch error:", error);
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          localStorage.removeItem("token");
           window.location.href = "/login";
         }
+      } finally {
+        setLoading((prev) => ({ ...prev, stats: false, categories: false }));
       }
     };
 
-    fetchData();
+    fetchInitialData();
   }, [user]);
 
   useEffect(() => {
     const fetchSalesData = async () => {
       try {
+        setLoading((prev) => ({ ...prev, sales: true }));
         const today = new Date();
-        const todayStr = today.toLocaleDateString("en-CA");
-
         let response;
+
         if (timeRange === "today") {
+          const todayStr = today.toLocaleDateString("en-CA");
           response = await api.get(`/api/orders/sales-performance/${todayStr}`);
         } else if (timeRange === "week") {
           response = await api.get(`/api/orders/weekly-sales-performance`);
         } else if (timeRange === "month") {
-          const year = today.getFullYear();
-          const month = today.getMonth() + 1;
           response = await api.get(
-            `/api/orders/monthly-sales-performance/${year}/${month}`
+            `/api/orders/monthly-sales-performance/${today.getFullYear()}/${
+              today.getMonth() + 1
+            }`
           );
         }
+
         setSalesData(response.data);
       } catch (error) {
-        console.error("Failed to fetch sales data:", error);
-        if (error.response?.status === 403) {
-          localStorage.removeItem("jwtToken");
-          window.location.href = "/login";
-        }
+        console.error("Sales data fetch error:", error);
+      } finally {
+        setLoading((prev) => ({ ...prev, sales: false }));
       }
     };
 

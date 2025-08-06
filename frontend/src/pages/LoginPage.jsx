@@ -1,34 +1,38 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
-
 import { useAuth } from "../pages/Context/AuthContext";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, user } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setIsLoading(true);
 
-    const { success, role } = await login({ username: email, password });
+    try {
+      const result = await login({
+        username: email,
+        password,
+      });
 
-    if (success) {
-      const redirectMap = {
-        ADMIN: "/admin",
-        WAITER: "/waiter-dashboard",
-        KITCHEN: "/kitchen-dashboard",
-        GUEST: "/customer/menu",
-      };
-      navigate(redirectMap[role] || "/");
-    } else {
-      setError("Login failed. Please try again.");
+      if (!result.success) {
+        throw new Error(result.error || "Login failed");
+      }
+
+      navigate(result.user.role === "ADMIN" ? "/admin" : "/dashboard");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0a0e27] to-[#0a1129] text-white flex items-center justify-center p-4">
       <motion.div
@@ -81,6 +85,7 @@ const LoginPage = () => {
                 className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
                 placeholder="your@email.com"
                 required
+                autoComplete="username"
               />
             </div>
 
@@ -101,16 +106,47 @@ const LoginPage = () => {
                 className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
                 placeholder="••••••••"
                 required
+                autoComplete="current-password"
+                minLength="8"
               />
             </div>
 
             <motion.button
               type="submit"
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 font-medium transition-all shadow-lg shadow-blue-500/20 mb-4"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              disabled={isLoading}
+              className={`w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 font-medium transition-all shadow-lg shadow-blue-500/20 mb-4 ${
+                isLoading ? "opacity-70 cursor-not-allowed" : ""
+              }`}
+              whileHover={!isLoading ? { scale: 1.02 } : {}}
+              whileTap={!isLoading ? { scale: 0.98 } : {}}
             >
-              Sign In
+              {isLoading ? (
+                <span className="flex items-center justify-center">
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Signing In...
+                </span>
+              ) : (
+                "Sign In"
+              )}
             </motion.button>
 
             <div className="text-center text-gray-400 text-sm mt-6">

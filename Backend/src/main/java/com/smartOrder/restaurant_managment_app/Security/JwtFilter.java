@@ -26,23 +26,25 @@ public class JwtFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, 
-                                  HttpServletResponse response, 
-                                  FilterChain chain) throws IOException, ServletException {
-        
-        String header = request.getHeader("Authorization");
-        
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws IOException, ServletException {
+        final String header = request.getHeader("Authorization");
+
         if (header == null || !header.startsWith("Bearer ")) {
             chain.doFilter(request, response);
             return;
         }
-        
+
         try {
-            String token = header.substring(7);
-            String username = jwtService.extractUsername(token);
+            final String token = header.substring(7);
+            final String username = jwtService.extractUserName(token);
             
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                
+                // Add this debug log
+                System.out.println("Validating token for: " + username + 
+                    " | Roles: " + userDetails.getAuthorities());
                 
                 if (jwtService.validateToken(token, userDetails)) {
                     UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
@@ -52,10 +54,11 @@ public class JwtFilter extends OncePerRequestFilter {
                 }
             }
         } catch (Exception e) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
+            // Add detailed error logging
+            System.err.println("JWT Validation Error: " + e.getMessage());
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Invalid token");
             return;
         }
-        
         chain.doFilter(request, response);
     }
 }

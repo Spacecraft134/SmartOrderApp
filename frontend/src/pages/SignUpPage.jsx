@@ -10,6 +10,7 @@ const SignUpPage = () => {
     restaurantName: "",
   });
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -18,6 +19,9 @@ const SignUpPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
     try {
       const response = await fetch("http://localhost:8080/register-admin", {
         method: "POST",
@@ -25,27 +29,48 @@ const SignUpPage = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          name: formData.name,
           username: formData.email,
+          email: formData.email,
           password: formData.password,
+          restaurantName: formData.restaurantName,
           role: "ADMIN",
         }),
-        credentials: "include", // Important for CORS with credentials
+        credentials: "include",
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      const responseData = await response.text();
+
+      try {
+        const data = JSON.parse(responseData);
+
+        if (!response.ok) {
+          throw new Error(data.message || "Registration failed");
+        }
+
         localStorage.setItem("jwtToken", data.token);
         localStorage.setItem("userRole", data.role);
+        localStorage.setItem("userName", formData.name);
+        localStorage.setItem("restaurantName", formData.restaurantName);
+
         navigate("/admin", {
-          state: { name: formData.name },
+          state: {
+            name: formData.name,
+            restaurantName: formData.restaurantName,
+          },
         });
-      } else {
-        const errorData = await response.json();
-        setError(errorData.message || "Registration failed");
+      } catch (jsonError) {
+        // If JSON parsing fails, use the raw response as error message
+        if (!response.ok) {
+          throw new Error(responseData || "Registration failed");
+        }
+        throw new Error("Invalid server response");
       }
     } catch (err) {
-      setError("Something went wrong. Try again later.");
-      console.error(err);
+      setError(err.message || "Something went wrong. Try again later.");
+      console.error("Registration error:", err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -93,7 +118,7 @@ const SignUpPage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-gray-300 mb-2 text-sm">
-                  First Name
+                  Full Name
                 </label>
                 <input
                   type="text"
@@ -101,7 +126,7 @@ const SignUpPage = () => {
                   value={formData.name}
                   onChange={handleChange}
                   className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
-                  placeholder="John"
+                  placeholder="John Doe"
                   required
                 />
               </div>
@@ -149,6 +174,7 @@ const SignUpPage = () => {
                 className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
                 placeholder="••••••••"
                 required
+                minLength="8"
               />
               <p className="text-xs text-gray-500 mt-2">
                 Minimum 8 characters with letters and numbers
@@ -157,11 +183,14 @@ const SignUpPage = () => {
 
             <motion.button
               type="submit"
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 font-medium transition-all shadow-lg shadow-blue-500/20 mb-4"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              disabled={isLoading}
+              className={`w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 font-medium transition-all shadow-lg shadow-blue-500/20 mb-4 ${
+                isLoading ? "opacity-75 cursor-not-allowed" : ""
+              }`}
+              whileHover={!isLoading ? { scale: 1.02 } : {}}
+              whileTap={!isLoading ? { scale: 0.98 } : {}}
             >
-              Create Account
+              {isLoading ? "Creating Account..." : "Create Account"}
             </motion.button>
 
             <div className="flex items-center my-6">

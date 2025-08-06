@@ -2,7 +2,7 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
+import api from "../pages/Utils/api";
 export default function MenuManager() {
   const [menuItems, setMenuItems] = useState([]);
   const [newItem, setNewItem] = useState({
@@ -34,14 +34,17 @@ export default function MenuManager() {
   // Fetch menu items
   const fetchMenuItems = () => {
     setIsLoading(true);
-    axios
-      .get("http://localhost:8080/api/menu")
+    api
+      .get("/api/menu")
       .then((res) => {
         setMenuItems(res.data);
         setIsLoading(false);
       })
-      .catch(() => {
-        toast.error("Failed to load menu items");
+      .catch((error) => {
+        console.error("Error fetching menu:", error);
+        toast.error(
+          error.response?.data?.message || "Failed to load menu items"
+        );
         setIsLoading(false);
       });
   };
@@ -72,8 +75,8 @@ export default function MenuManager() {
       formData.append("image", newItem.image);
     }
 
-    axios
-      .post("http://localhost:8080/api/menu", formData, {
+    api
+      .post("/api/menu", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       })
       .then(() => {
@@ -88,7 +91,10 @@ export default function MenuManager() {
         setPreviewImage(null);
         toast.success("Item added successfully!");
       })
-      .catch(() => toast.error("Failed to add item"))
+      .catch((error) => {
+        console.error("Add item error:", error);
+        toast.error(error.response?.data?.message || "Failed to add item");
+      })
       .finally(() => setIsAdding(false));
   };
 
@@ -102,7 +108,7 @@ export default function MenuManager() {
         price: editFormData.price,
         description: editFormData.description,
         category: editFormData.category,
-        imageUrl: editImageFile ? null : editFormData.imageUrl, // Clear if new image uploaded
+        imageUrl: editImageFile ? null : editFormData.imageUrl,
       })
     );
 
@@ -110,8 +116,8 @@ export default function MenuManager() {
       formData.append("image", editImageFile);
     }
 
-    axios
-      .put(`http://localhost:8080/api/menu/${id}`, formData, {
+    api
+      .put(`/api/menu/${id}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       })
       .then((res) => {
@@ -121,19 +127,26 @@ export default function MenuManager() {
         toast.success("Item updated successfully!");
         cancelEditing();
       })
-      .catch(() => toast.error("Failed to update item"));
+      .catch((error) => {
+        console.error("Update error:", error);
+        toast.error(error.response?.data?.message || "Failed to update item");
+      });
   };
 
   // Delete item
   const handleDeleteItem = (id) => {
     if (!window.confirm("Are you sure you want to delete this item?")) return;
-    axios
-      .delete(`http://localhost:8080/api/menu/${id}`)
+
+    api
+      .delete(`/api/menu/${id}`)
       .then(() => {
         setMenuItems(menuItems.filter((item) => item.id !== id));
         toast.success("Item deleted successfully!");
       })
-      .catch(() => toast.error("Failed to delete item"));
+      .catch((error) => {
+        console.error("Delete error:", error);
+        toast.error(error.response?.data?.message || "Failed to delete item");
+      });
   };
 
   // Image handling
@@ -173,11 +186,26 @@ export default function MenuManager() {
     setEditImageFile(null);
   };
 
-  // Filtering and pagination
+  // Toggle availability
+  const toggleAvailability = async (id) => {
+    try {
+      await api.patch(`/api/menu/${id}/availability`);
+      toast.success("Item availability updated");
+      fetchMenuItems();
+    } catch (error) {
+      console.error("Toggle availability error:", error);
+      toast.error(
+        error.response?.data?.message || "Failed to toggle availability"
+      );
+    }
+  };
+
+  // Filtering and pagination logic remains the same
   const uniqueCategories = [
     "All",
     ...new Set(menuItems.map((i) => i.category || "Uncategorized")),
   ];
+
   const filteredItems = menuItems
     .filter((item) =>
       activeTab === "All"
@@ -202,17 +230,6 @@ export default function MenuManager() {
       }
     });
 
-  const toggleAvailability = async (id) => {
-    try {
-      await axios.patch(`http://localhost:8080/api/menu/${id}/availability`);
-      toast.success("Item availability updated");
-      fetchMenuItems(); // Refresh
-    } catch (error) {
-      toast.error("Failed to toggle availability");
-    }
-  };
-
-  // Pagination
   const lastItemIndex = currentPage * itemsPerPage;
   const firstItemIndex = lastItemIndex - itemsPerPage;
   const paginatedItems = filteredItems.slice(firstItemIndex, lastItemIndex);

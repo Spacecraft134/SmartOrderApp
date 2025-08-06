@@ -14,12 +14,22 @@ public class Users {
   private String username;
   private String password;
   @Enumerated(EnumType.STRING)
-  private Role role;
+  private Role role = Role.GUEST;
   
   public enum Role{
     GUEST, WAITER, KITCHEN, ADMIN
   }
   
+  private String name;
+  
+  
+  
+  public String getName() {
+    return name;
+  }
+  public void setName(String name) {
+    this.name = name;
+  }
   public int getId() {
     return id;
   }
@@ -48,7 +58,8 @@ public class Users {
   @Override
   public String toString() {
     return "Users [id=" + id + ", username=" + username + ", password=" + password + ", role="
-        + role + "]";
+        + role + ", name=" + name + "]";
   }
+ 
   
 }
