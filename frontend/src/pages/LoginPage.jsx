@@ -26,7 +26,10 @@ const LoginPage = () => {
         throw new Error(result.error || "Login failed");
       }
 
-      navigate(result.user.role === "ADMIN" ? "/admin" : "/dashboard");
+      // Redirect based on role
+      const redirectPath =
+        result.user.role === "ADMIN" ? "/admin" : "/dashboard";
+      navigate(redirectPath);
     } catch (err) {
       setError(err.message);
     } finally {
