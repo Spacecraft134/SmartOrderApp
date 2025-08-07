@@ -38,7 +38,6 @@ export default function MenuManager() {
     api
       .get("/api/menu")
       .then((res) => {
-        console.log("Fetched menu items:", res.data); // Debug log
         setMenuItems(res.data);
         setIsLoading(false);
       })
@@ -57,7 +56,6 @@ export default function MenuManager() {
   };
   useEffect(() => fetchMenuItems(), []);
 
-  // Add new item
   const handleAddItem = (e) => {
     e.preventDefault();
     if (!newItem.name || !newItem.price) {
@@ -67,15 +65,19 @@ export default function MenuManager() {
 
     setIsAdding(true);
     const formData = new FormData();
-    formData.append(
-      "item",
-      JSON.stringify({
-        name: newItem.name,
-        price: parseFloat(newItem.price), // Ensure number type
-        description: newItem.description,
-        category: newItem.category,
-      })
+    const itemBlob = new Blob(
+      [
+        JSON.stringify({
+          name: newItem.name,
+          price: parseFloat(newItem.price),
+          description: newItem.description,
+          category: newItem.category,
+        }),
+      ],
+      { type: "application/json" }
     );
+
+    formData.append("item", itemBlob);
 
     if (newItem.image) {
       formData.append("image", newItem.image);
@@ -83,11 +85,13 @@ export default function MenuManager() {
 
     api
       .post("/api/menu", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       })
       .then(() => {
         toast.success("Item added successfully!");
-        fetchMenuItems(); // Refresh the list
+        fetchMenuItems();
         resetForm();
       })
       .catch((error) => {
@@ -113,19 +117,24 @@ export default function MenuManager() {
     setPreviewImage(null);
   };
 
-  // Update item
   const handleUpdateItem = (id) => {
     const formData = new FormData();
-    formData.append(
-      "item",
-      JSON.stringify({
-        name: editFormData.name,
-        price: editFormData.price,
-        description: editFormData.description,
-        category: editFormData.category,
-        imageUrl: editImageFile ? null : editFormData.imageUrl,
-      })
+
+    // Create a Blob for the JSON data
+    const itemBlob = new Blob(
+      [
+        JSON.stringify({
+          name: editFormData.name,
+          price: editFormData.price,
+          description: editFormData.description,
+          category: editFormData.category,
+          imageUrl: editImageFile ? null : editFormData.imageUrl,
+        }),
+      ],
+      { type: "application/json" }
     );
+
+    formData.append("item", itemBlob);
 
     if (editImageFile) {
       formData.append("image", editImageFile);
@@ -133,7 +142,9 @@ export default function MenuManager() {
 
     api
       .put(`/api/menu/${id}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       })
       .then((res) => {
         setMenuItems(
@@ -144,10 +155,14 @@ export default function MenuManager() {
       })
       .catch((error) => {
         console.error("Update error:", error);
-        toast.error(error.response?.data?.message || "Failed to update item");
+        if (error.response?.status === 401) {
+          toast.error("Session expired. Please login again.");
+          logout();
+        } else {
+          toast.error(error.response?.data?.message || "Failed to update item");
+        }
       });
   };
-
   // Delete item
   const handleDeleteItem = (id) => {
     if (!window.confirm("Are you sure you want to delete this item?")) return;
@@ -188,8 +203,9 @@ export default function MenuManager() {
       description: item.description || "",
       imageUrl: item.imageUrl || "",
     });
-    // Remove hardcoded localhost:8080
-    setEditPreviewImage(item.imageUrl || null);
+    setEditPreviewImage(
+      item.imageUrl ? `http://localhost:8080${item.imageUrl}` : null
+    );
     setEditImageFile(null);
   };
 

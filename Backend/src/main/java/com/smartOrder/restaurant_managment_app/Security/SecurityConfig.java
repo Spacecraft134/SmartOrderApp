@@ -31,34 +31,33 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .csrf(csrf -> csrf.disable())
+            .csrf(csrf -> csrf.disable()) // Safe for stateless JWT API
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/login", 
                     "/register",
                     "/register-admin", 
                     "/api/auth/validate", 
-                    "/api/auth/me",
+                    "/api/auth/**",
                     "/uploads/**",
-                    "/logout"  
+                    "/logout",
+                    "/error" // Add error endpoint if needed
                 ).permitAll()
-                .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN") 
-                .requestMatchers("/api/**").authenticated() 
+                .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
+                .requestMatchers("/api/**").authenticated()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
-            // Add logout configuration
             .logout(logout -> logout
-                .logoutUrl("/logout")  // Matches your @PostMapping
+                .logoutUrl("/logout")
                 .logoutSuccessHandler((request, response, authentication) -> {
                     response.setStatus(HttpServletResponse.SC_OK);
                 })
-                .invalidateHttpSession(false)  
-                .deleteCookies("JSESSIONID", "token") 
+                // Remove session invalidation since we're stateless
+                .deleteCookies("JSESSIONID", "token") // Ensure these cookie names match what you use
                 .clearAuthentication(true)
-                .permitAll()
             )
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -68,17 +67,22 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")); 
+        // Use patterns for flexibility
+        config.setAllowedOriginPatterns(List.of(
+            "http://localhost:[*]", // Allows any port from localhost
+            "http://127.0.0.1:[*]", // IPv4 alternative
+            "http://[::1]:[*]"      // IPv6 alternative
+        ));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
-        config.setMaxAge(3600L); 
+        config.setMaxAge(3600L);
+        config.setExposedHeaders(List.of("Authorization")); // Expose JWT header if needed
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
     }
-
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(12);

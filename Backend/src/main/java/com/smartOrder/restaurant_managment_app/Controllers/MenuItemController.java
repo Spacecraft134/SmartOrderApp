@@ -1,7 +1,9 @@
 package com.smartOrder.restaurant_managment_app.Controllers;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartOrder.restaurant_managment_app.Models.MenuItems;
 import com.smartOrder.restaurant_managment_app.Models.Users;
+import com.smartOrder.restaurant_managment_app.Models.Users.Role;
 import com.smartOrder.restaurant_managment_app.repository.MenuItemRepository;
 import com.smartOrder.restaurant_managment_app.repository.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,12 +22,12 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.UUID;
-
+import java.util.logging.Logger;
+import java.util.logging.Level;
 @RestController
 @RequestMapping("/api/menu")
-@CrossOrigin(origins = "*")
 public class MenuItemController {
-
+    
     private final MenuItemRepository menuItemRepo;
     private final UserRepo userRepo;
     private final Path uploadDir = Paths.get("uploads");
@@ -44,10 +46,20 @@ public class MenuItemController {
     }
 
     @GetMapping
-    public ResponseEntity<List<MenuItems>> getAllMenuItems() {
-        Users admin = getCurrentAdmin();
-        List<MenuItems> items = menuItemRepo.findByAdmin(admin);
-        return ResponseEntity.ok(items);
+    public ResponseEntity<?> getAllMenuItems() {
+        try {
+            Users admin = getCurrentAdmin();
+            if (admin == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Admin not authenticated");
+            }
+            
+            List<MenuItems> items = menuItemRepo.findByAdmin(admin);
+            return ResponseEntity.ok(items);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error fetching menu items");
+        }
     }
 
     @GetMapping("/{id}")
@@ -57,11 +69,14 @@ public class MenuItemController {
                 .orElseThrow(() -> new RuntimeException("Menu item not found"));
         return ResponseEntity.ok(item);
     }
-
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<MenuItems> createMenuItem(
-            @RequestPart("item") MenuItems menuItem,
+            @RequestPart("item") String menuItemJson,
             @RequestPart(value = "image", required = false) MultipartFile imageFile) throws IOException {
+        
+        // Convert JSON string to MenuItems object
+        ObjectMapper objectMapper = new ObjectMapper();
+        MenuItems menuItem = objectMapper.readValue(menuItemJson, MenuItems.class);
         
         Users admin = getCurrentAdmin();
         menuItem.setAdmin(admin);
@@ -141,23 +156,28 @@ public class MenuItemController {
     }
 
     private Users getCurrentAdmin() {
-      Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-      if (auth == null) {
-          throw new RuntimeException("No authentication found");
+      try {
+          Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+          if (auth == null || !auth.isAuthenticated()) {
+              throw new RuntimeException("Not authenticated");
+          }
+          
+          String username = auth.getName();
+          Users user = userRepo.findByUsername(username);
+          
+          if (user == null) {
+              throw new RuntimeException("User not found");
+          }
+          
+          if (user.getRole() != Role.ADMIN){
+              throw new RuntimeException("User is not an admin");
+          }
+          
+          
+          return user;
+      } catch (Exception e) {
+          throw new RuntimeException("Failed to get current admin: " + e.getMessage(), e);
       }
-      
-      String username = auth.getName();
-      Users user = userRepo.findByUsername(username);
-      
-      if (user == null) {
-          throw new RuntimeException("Admin not found for username: " + username);
-      }
-      
-      if (!user.getRole().equals("ADMIN")) {
-          throw new RuntimeException("User is not an admin");
-      }
-      
-      return user;
   }
 
     private String saveImage(MultipartFile imageFile) throws IOException {

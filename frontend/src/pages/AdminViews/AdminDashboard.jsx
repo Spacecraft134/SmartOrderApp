@@ -71,10 +71,10 @@ export function AdminDashboard() {
     const token = localStorage.getItem("token");
     const userData = JSON.parse(localStorage.getItem("userData"));
 
-    if (!token || !userData) {
-      window.location.href = "/login";
-      return;
-    }
+    // if (!token || !userData) {
+    //   window.location.href = "/login";
+    //   return;
+    // }
 
     const fetchInitialData = async () => {
       try {

@@ -18,6 +18,7 @@ import { Route, Routes } from "react-router-dom";
 import ErrorPage from "../pages/Utils/ErrorPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import ResetPasswordPage from "../pages/ResetPasswordPage";
+import UserManagement from "../pages/AdminViews/UserManagement";
 
 export default function ResturantAppRouter() {
   return (
@@ -77,6 +78,7 @@ export default function ResturantAppRouter() {
           <Route path="menu" element={<MenuManager />} />
           <Route path="QRCode" element={<TableQRGenerator />} />
           <Route path="poster" element={<PosterEditor />} />
+          <Route path="users" element={<UserManagement />} />
           <Route path="setting" element={<Setting />} />
         </Route>
         <Route path="/error" element={<ErrorPage />} />

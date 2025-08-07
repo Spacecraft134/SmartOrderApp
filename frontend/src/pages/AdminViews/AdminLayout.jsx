@@ -7,6 +7,7 @@ import {
   FiCode,
   FiLogOut,
   FiX,
+  FiUsers,
 } from "react-icons/fi";
 import { useState } from "react";
 import axios from "axios";
@@ -42,16 +43,19 @@ export function AdminLayout() {
       icon: <FiImage className="text-lg" />,
     },
     {
+      path: "/admin/users",
+      name: "User Management",
+      icon: <FiUsers className="text-lg" />,
+    },
+    {
       path: "/admin/setting",
       name: "Settings",
       icon: <FiSettings className="text-lg" />,
     },
   ];
 
-  // In AdminLayout.jsx
   const handleLogout = async () => {
     try {
-      // Call the logout function from AuthContext
       await logout();
     } catch (error) {
       console.error("Logout error:", error);
