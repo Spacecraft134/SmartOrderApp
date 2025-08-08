@@ -19,7 +19,9 @@ import ErrorPage from "../pages/Utils/ErrorPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import ResetPasswordPage from "../pages/ResetPasswordPage";
 import UserManagement from "../pages/AdminViews/UserManagement";
-
+import EmployeeLogin from "../pages/EmployeeLogin";
+import EmployeeRouteGuard from "../pages/Utils/EmployeeRouteGuard";
+import EmployeeLayout from "../pages/Utils/EmployeeLayout";
 export default function ResturantAppRouter() {
   return (
     <AuthProvider>
@@ -37,25 +39,6 @@ export default function ResturantAppRouter() {
           element={<CustomerOrdersList />}
         />
         <Route path="/thank-you/:tableNumber" element={<ThankYou />} />
-
-        {/* Protected routes */}
-        <Route
-          path="/waiter-dashboard"
-          element={
-            <ProtectedRoute allowedRoles={["WAITER", "ADMIN"]}>
-              <WaiterDashboard />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/kitchen-dashboard"
-          element={
-            <ProtectedRoute allowedRoles={["KITCHEN", "ADMIN"]}>
-              <KitchenDashboard />
-            </ProtectedRoute>
-          }
-        />
 
         <Route
           path="/tableQRs"
@@ -84,6 +67,18 @@ export default function ResturantAppRouter() {
         <Route path="/error" element={<ErrorPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+        <Route path="/employee/login" element={<EmployeeLogin />} />
+        <Route
+          path="/employee/*"
+          element={
+            <EmployeeRouteGuard>
+              <EmployeeLayout />
+            </EmployeeRouteGuard>
+          }
+        >
+          <Route path="waiter-dashboard" element={<WaiterDashboard />} />
+          <Route path="kitchen-dashboard" element={<KitchenDashboard />} />
+        </Route>
       </Routes>
     </AuthProvider>
   );

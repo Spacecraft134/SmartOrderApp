@@ -178,8 +178,7 @@ public class OrderController {
     
     @GetMapping("/daily/{date}")
     public Stats getStatsForDate(@PathVariable("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return statsSummaryRepo.findByDate(date)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No stats for date: " + date));
+      return statsSummaryRepo.findByDate(date).orElse(new Stats()); 
     }
     
     @GetMapping("/busy-hours/{date}")

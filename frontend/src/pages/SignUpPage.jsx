@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import api from "../pages/Utils/api";
 
 const SignUpPage = () => {
   const [formData, setFormData] = useState({
@@ -8,6 +10,7 @@ const SignUpPage = () => {
     email: "",
     password: "",
     restaurantName: "",
+    restaurantCode: "",
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -23,52 +26,36 @@ const SignUpPage = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8080/register-admin", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const response = await api.post(
+        `/register-admin/${formData.restaurantCode}`,
+        {
           name: formData.name,
           username: formData.email,
           email: formData.email,
           password: formData.password,
-          restaurantName: formData.restaurantName,
-          role: "ADMIN",
-        }),
-        credentials: "include",
+          restaurantName: formData.restaurantName, // Now sending restaurantName
+        }
+      );
+
+      // Store the received token and user data
+      localStorage.setItem("jwtToken", response.data.token);
+      localStorage.setItem("user", JSON.stringify(response.data.user));
+      localStorage.setItem("restaurantName", response.data.restaurantName); // Store restaurant name
+
+      toast.success("Registration successful!");
+      navigate("/admin", {
+        state: {
+          restaurantName: response.data.restaurantName,
+        },
       });
-
-      const responseData = await response.text();
-
-      try {
-        const data = JSON.parse(responseData);
-
-        if (!response.ok) {
-          throw new Error(data.message || "Registration failed");
-        }
-
-        localStorage.setItem("jwtToken", data.token);
-        localStorage.setItem("userRole", data.role);
-        localStorage.setItem("userName", formData.name);
-        localStorage.setItem("restaurantName", formData.restaurantName);
-
-        navigate("/admin", {
-          state: {
-            name: formData.name,
-            restaurantName: formData.restaurantName,
-          },
-        });
-      } catch (jsonError) {
-        // If JSON parsing fails, use the raw response as error message
-        if (!response.ok) {
-          throw new Error(responseData || "Registration failed");
-        }
-        throw new Error("Invalid server response");
-      }
     } catch (err) {
-      setError(err.message || "Something went wrong. Try again later.");
-      console.error("Registration error:", err);
+      const errorMessage =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        "Registration failed";
+      setError(errorMessage);
+      toast.error(errorMessage);
+      console.error("Registration error:", err.response?.data);
     } finally {
       setIsLoading(false);
     }
@@ -141,25 +128,44 @@ const SignUpPage = () => {
                   value={formData.restaurantName}
                   onChange={handleChange}
                   className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
-                  placeholder="Restaurant XYZ"
+                  placeholder="restaurant"
                   required
                 />
               </div>
             </div>
 
-            <div className="mb-4">
-              <label className="block text-gray-300 mb-2 text-sm">
-                Email Address
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
-                placeholder="your@email.com"
-                required
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-gray-300 mb-2 text-sm">
+                  Restaurant Code
+                </label>
+                <input
+                  type="text"
+                  name="restaurantCode"
+                  value={formData.restaurantCode}
+                  onChange={handleChange}
+                  className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
+                  placeholder="1234"
+                  required
+                  pattern="[A-Za-z0-9\-]{4,20}" // Escape the hyphen
+                  title="4-20 alphanumeric characters or hyphens"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 mb-2 text-sm">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
+                  placeholder="your@email.com"
+                  required
+                />
+              </div>
             </div>
 
             <div className="mb-6">
@@ -192,41 +198,6 @@ const SignUpPage = () => {
             >
               {isLoading ? "Creating Account..." : "Create Account"}
             </motion.button>
-
-            <div className="flex items-center my-6">
-              <div className="flex-grow border-t border-white/10"></div>
-              <span className="mx-4 text-gray-500 text-sm">
-                OR CONTINUE WITH
-              </span>
-              <div className="flex-grow border-t border-white/10"></div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              <button
-                type="button"
-                className="p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all flex items-center justify-center"
-              >
-                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                  <path
-                    fill="currentColor"
-                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"
-                  />
-                </svg>
-                Google
-              </button>
-              <button
-                type="button"
-                className="p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all flex items-center justify-center"
-              >
-                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                  <path
-                    fill="currentColor"
-                    d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"
-                  />
-                </svg>
-                Facebook
-              </button>
-            </div>
 
             <div className="text-center text-gray-400 text-sm">
               Already have an account?{" "}

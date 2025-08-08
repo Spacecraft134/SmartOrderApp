@@ -1,6 +1,7 @@
 package com.smartOrder.restaurant_managment_app.services;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -8,8 +9,10 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.smartOrder.restaurant_managment_app.Models.Users;
+import com.smartOrder.restaurant_managment_app.repository.RestaurantRepository;
 import com.smartOrder.restaurant_managment_app.repository.UserRepo;
 @Service
 public class UserService {
@@ -21,6 +24,12 @@ public class UserService {
     
     @Autowired 
     private JWTService jwtService;
+    
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+    
+    @Autowired
+    private RestaurantRepository restaurantRepository;
     
     public Users register(Users user) {
         if (userRepo.findByUsername(user.getUsername()) != null) {
@@ -58,4 +67,79 @@ public class UserService {
     public Users findByUsername(String username) {
       return userRepo.findByUsername(username);
   }
-}
+    
+ // Get all users for a restaurant
+    public List<Users> getUsersByRestaurantId(Integer restaurantId) {
+        return userRepo.findByRestaurantId(restaurantId);
+    }
+
+    // Get admin for a restaurant
+    public Users getAdminByRestaurantId(Integer restaurantId) {
+        return userRepo.findByRestaurantIdAndRole(restaurantId, Users.Role.ADMIN)
+            .stream()
+            .findFirst()
+            .orElse(null);
+    }
+
+    // Get waiters for a restaurant
+    public List<Users> getWaitersByRestaurantId(Integer restaurantId) {
+        return userRepo.findByRestaurantIdAndRole(restaurantId, Users.Role.WAITER);
+    }
+
+    // Get kitchen staff for a restaurant
+    public List<Users> getKitchenStaffByRestaurantId(Integer restaurantId) {
+        return userRepo.findByRestaurantIdAndRole(restaurantId, Users.Role.KITCHEN);
+    }
+
+    public Users createUser(Users user) {
+      // Verify restaurant exists
+      if (!restaurantRepository.existsById(user.getRestaurantId())) {
+          throw new RuntimeException("Restaurant not found");
+      }
+      
+      // Check if username (email) already exists
+      if (userRepo.existsByUsername(user.getUsername())) {
+          throw new RuntimeException("Username already exists");
+      }
+      
+      // If creating admin, verify only one admin per restaurant
+      if (user.getRole() == Users.Role.ADMIN && 
+          userRepo.existsByRestaurantIdAndRole(user.getRestaurantId(), Users.Role.ADMIN)) {
+          throw new RuntimeException("Restaurant already has an admin");
+      }
+      
+      user.setPassword(passwordEncoder.encode(user.getPassword()));
+      return userRepo.save(user);
+  }
+
+    // Invite waiter with restaurant validation
+    public Users inviteWaiter(Users user, Integer restaurantId) {
+        user.setRestaurantId(restaurantId);
+        user.setRole(Users.Role.WAITER);
+        user.setPassword(passwordEncoder.encode("temporary123")); // Default password
+        user.setActive(false); // Needs activation
+        
+        return userRepo.save(user);
+    }
+
+    // Invite kitchen staff with restaurant validation
+    public Users inviteKitchenUser(Users user, Integer restaurantId) {
+        user.setRestaurantId(restaurantId);
+        user.setRole(Users.Role.KITCHEN);
+        user.setPassword(passwordEncoder.encode("temporary123")); // Default password
+        user.setActive(false); // Needs activation
+        
+        return userRepo.save(user);
+    }
+    
+    public Users toggleUserStatus(Integer userId, boolean active) {
+      Users user = userRepo.findById(userId)
+          .orElseThrow(() -> new RuntimeException("User not found"));
+      user.setActive(active);
+      return userRepo.save(user);
+  }
+    
+    public void deleteUser(int userId) {
+      userRepo.deleteById(userId);
+  }
+} 

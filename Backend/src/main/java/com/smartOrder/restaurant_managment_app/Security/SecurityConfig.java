@@ -36,14 +36,19 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/login", 
                     "/register",
-                    "/register-admin", 
+                    "/register-admin/**", 
                     "/api/auth/validate", 
                     "/api/auth/**",
                     "/uploads/**",
                     "/logout",
-                    "/error" // Add error endpoint if needed
+                    "/error",
+                    "/api/employee/login"
                 ).permitAll()
                 .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
+                .requestMatchers("/api/waiters/**").hasAnyRole("ADMIN", "WAITER")
+                .requestMatchers("/api/kitchen/**").hasAnyRole("ADMIN", "KITCHEN")
+                .requestMatchers("/api/employee/**").hasAnyAuthority("WAITER", "KITCHEN")
+                .requestMatchers("/employee/**").hasAnyAuthority("WAITER", "KITCHEN")
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().authenticated()
             )
@@ -56,7 +61,7 @@ public class SecurityConfig {
                     response.setStatus(HttpServletResponse.SC_OK);
                 })
                 // Remove session invalidation since we're stateless
-                .deleteCookies("JSESSIONID", "token") // Ensure these cookie names match what you use
+                .deleteCookies("JSESSIONID", "token",  "employeeToken") // Ensure these cookie names match what you use
                 .clearAuthentication(true)
             )
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
