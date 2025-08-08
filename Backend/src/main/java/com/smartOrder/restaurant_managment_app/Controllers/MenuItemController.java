@@ -61,6 +61,20 @@ public class MenuItemController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error fetching menu items");
         }
     }
+    
+    @GetMapping("/public")
+    public ResponseEntity<?> getPublicMenu() {
+        try {
+            List<MenuItems> allItems = menuItemRepo.findAll();
+            List<MenuItems> availableItems = allItems.stream()
+                    .filter(MenuItems::isAvailable)
+                    .toList();
+            return ResponseEntity.ok(availableItems);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error fetching public menu");
+        }
+    }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<MenuItems> getMenuItem(@PathVariable Long id) {

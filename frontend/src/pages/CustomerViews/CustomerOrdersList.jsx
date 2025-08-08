@@ -159,12 +159,15 @@ export function CustomerOrdersList() {
           <p className="text-center p-4 bg-yellow-100 rounded-md text-yellow-800 font-semibold shadow mb-6">
             No active orders currently. Feel free to order something new!
           </p>
-          <Link
-            to={`/customerOrder/${tableNumber}`}
-            className="block text-center bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow hover:bg-blue-700 transition"
+          <button
+            onClick={() => {
+              e.preventDefault();
+              navigate(`/customerOrder/${tableNumber}`);
+            }}
+            className="block text-center bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow hover:bg-blue-700 transition mb-6"
           >
             Order More
-          </Link>
+          </button>
         </>
       ) : (
         <>

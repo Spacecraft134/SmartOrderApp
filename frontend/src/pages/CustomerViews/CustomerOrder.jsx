@@ -101,23 +101,15 @@ export function CustomerOrder() {
     };
   }, [tableID, navigate]);
 
-  // Load menu - Always load menu regardless of tableID
   useEffect(() => {
     const loadMenu = async () => {
       try {
-        const res = await axios.get("http://localhost:8080/api/menu");
+        const res = await axios.get("http://localhost:8080/api/menu/public");
         setMenuItems(res.data);
 
-        // Only try to start session if we have a tableID
-        if (tableID) {
-          await axios.post(
-            `http://localhost:8080/api/tables/${tableID}/start-session`
-          );
-
-          // Redirect if coming from order page
-          if (tableNumberParam) {
-            navigate(`/guest-orders/${tableID}`);
-          }
+        // Remove the session creation from here
+        if (tableNumberParam) {
+          navigate(`/guest-orders/${tableID}`);
         }
       } catch (error) {
         toast.error("Failed to load menu: " + error.message);
@@ -186,9 +178,9 @@ export function CustomerOrder() {
     });
   };
 
-  const handleSubmitOrder = () => {
+  const handleSubmitOrder = async () => {
     if (!tableID) {
-      toast.warning("Please enter your Table ID before placing an order!");
+      toast.warning("Please enter your Table ID!");
       return;
     }
     if (cart.length === 0) {
@@ -198,28 +190,47 @@ export function CustomerOrder() {
 
     setIsSubmitting(true);
 
-    const orderData = {
-      tableNumber: tableID,
-      items: cart.map((item) => ({
-        menuItem: { id: item.id },
-        quantity: item.quantity,
-        instructions: item.instructions || "",
-      })),
-    };
+    try {
+      // 1. Start session - use full URL or configured baseURL
+      await axios.post(
+        `http://localhost:8080/api/tables/${tableID}/start-session`
+      );
 
-    axios
-      .post("http://localhost:8080/api/orders", orderData)
-      .then(() => {
-        toast.success("Order Placed Successfully!", {
-          position: "top-center",
-          autoClose: 2000,
-        });
-        setCart([]);
-        setIsCartOpen(false);
-        navigate(`/guest-orders/${tableID}`);
-      })
-      .catch(() => toast.error("Failed to place order"))
-      .finally(() => setIsSubmitting(false));
+      // 2. Submit order
+      const orderData = {
+        tableNumber: tableID,
+        items: cart.map((item) => ({
+          menuItem: { id: item.id },
+          quantity: item.quantity,
+          instructions: item.instructions || "",
+        })),
+      };
+
+      const response = await axios.post(
+        "http://localhost:8080/api/orders",
+        orderData,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`, // If needed
+          },
+        }
+      );
+
+      toast.success("Order Placed Successfully!");
+      setCart([]);
+      setIsCartOpen(false);
+      navigate(`/guest-orders/${tableID}`);
+    } catch (error) {
+      console.error("Order error:", {
+        status: error.response?.status,
+        data: error.response?.data,
+        config: error.config,
+      });
+      toast.error(error.response?.data?.message || "Order failed");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Send help request for this table

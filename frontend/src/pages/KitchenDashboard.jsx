@@ -78,19 +78,32 @@ export function KitchenDashboard() {
     }
   };
 
+  // Update your fetchOrders function
   const fetchOrders = async () => {
     try {
       setIsLoading(true);
+      const token = localStorage.getItem("token"); // Get token from storage
+
       const response = await axios.get("http://localhost:8080/api/orders", {
         params: { status: "IN_PROGRESS" },
+        headers: {
+          Authorization: `Bearer ${token}`, // Add authorization header
+        },
       });
+
       const processed = response.data
         .map(processOrderData)
         .filter(Boolean)
         .filter((order) => order.statusOfOrder === "IN_PROGRESS");
       setOrders(processed);
-    } catch {
-      toast.error("Failed to load orders");
+    } catch (error) {
+      if (error.response?.status === 401) {
+        toast.error("Session expired. Please login again.");
+        // Redirect to login or handle token refresh
+        window.location.href = "/login";
+      } else {
+        toast.error("Failed to load orders");
+      }
     } finally {
       setIsLoading(false);
     }

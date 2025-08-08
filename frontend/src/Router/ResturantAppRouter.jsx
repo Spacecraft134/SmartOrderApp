@@ -30,10 +30,7 @@ export default function ResturantAppRouter() {
         <Route path="/" element={<LaunchPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />
-        <Route
-          path="/customerOrder/:tableNumber?"
-          element={<CustomerOrder />}
-        />
+        <Route path="/customerOrder/:tableNumber" element={<CustomerOrder />} />
         <Route
           path="/guest-orders/:tableNumber"
           element={<CustomerOrdersList />}

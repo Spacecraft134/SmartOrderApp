@@ -1,11 +1,12 @@
 package com.smartOrder.restaurant_managment_app.Models;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.smartOrder.restaurant_managment_app.Models.Users;
 
 @Entity
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler",  "admin"})
 public class MenuItems {
     
     @Id
@@ -23,6 +24,7 @@ public class MenuItems {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "admin_id", nullable = false)
+    @JsonIgnore
     private Users admin;
     
     public MenuItems() {}

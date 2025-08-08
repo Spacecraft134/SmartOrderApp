@@ -13,6 +13,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class JWTService {
@@ -24,10 +25,13 @@ public class JWTService {
     private long expiration;
 
     public String generateToken(UserDetails userDetails) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("roles", userDetails.getAuthorities());
-        return buildToken(claims, userDetails.getUsername());
-    }
+      Map<String, Object> claims = new HashMap<>();
+      // Extract authorities with ROLE_ prefix
+      claims.put("roles", userDetails.getAuthorities().stream()
+              .map(grantedAuthority -> "ROLE_" + grantedAuthority.getAuthority())
+              .collect(Collectors.toList()));
+      return buildToken(claims, userDetails.getUsername());
+  }
 
     private String buildToken(Map<String, Object> claims, String subject) {
         return Jwts.builder()

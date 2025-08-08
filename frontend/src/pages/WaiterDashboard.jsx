@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import axios from "axios";
+import api from "../pages/Utils/api";
 import {
   FiCheck,
   FiClock,
@@ -47,20 +48,28 @@ export function WaiterDashboard() {
     }
   };
 
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [requests, orders, tables] = await Promise.all([
+        api.get("/api/help-requests/all-active-request"),
+        api.get("/api/orders/pending"),
+        api.get("/api/tables/active"),
+      ]);
+
+      setRequests(requests.data);
+      setOrders(orders.data);
+      setActiveTables(tables.data);
+    } catch (error) {
+      console.error("Failed to fetch data:", error);
+      toast.error(error.response?.data?.message || "Failed to load data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    setLoading(true);
-    Promise.all([
-      axios.get("http://localhost:8080/api/help-requests/all-active-request"),
-      axios.get("http://localhost:8080/api/orders/pending"),
-      axios.get("http://localhost:8080/api/tables/active"),
-    ])
-      .then(([reqRes, orderRes, tablesRes]) => {
-        setRequests(reqRes.data);
-        setOrders(orderRes.data);
-        setActiveTables(tablesRes.data);
-      })
-      .catch(() => toast.error("Failed to load data"))
-      .finally(() => setLoading(false));
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -173,34 +182,54 @@ export function WaiterDashboard() {
     };
   }, []);
 
-  const deleteRequest = (id) => {
-    axios
-      .delete(`http://localhost:8080/api/help-requests/${id}`)
-      .then(() => {
-        toast.success("Request deleted");
-      })
-      .catch(() => toast.error("Failed to delete request"));
+  const deleteRequest = async (id) => {
+    try {
+      const response = await api.delete(`/api/help-requests/${id}`);
+
+      toast.success("Request deleted");
+
+      // Optimistic UI update
+      setRequests((prev) => prev.filter((req) => req.id !== id));
+    } catch (error) {
+      console.error("Delete error details:", {
+        status: error.response?.status,
+        data: error.response?.data,
+        headers: error.response?.headers,
+      });
+
+      toast.error(
+        error.response?.data?.message ||
+          "Failed to delete request. Please check your authentication."
+      );
+    }
   };
 
-  const confirmOrder = (id) => {
-    axios
-      .put(`http://localhost:8080/api/orders/${id}/progress`)
-      .then(() => {
+  const confirmOrder = async (id) => {
+    try {
+      const response = await api.put(`/api/orders/${id}/progress`);
+
+      if (response.status === 200) {
         toast.success("Order confirmed");
         setOrders((prev) => prev.filter((order) => order.id !== id));
-      })
-      .catch(() => toast.error("Failed to confirm order"));
-  };
+      } else {
+        throw new Error(response.data?.message || "Failed to confirm order");
+      }
+    } catch (error) {
+      console.error("Order confirmation error:", {
+        status: error.response?.status,
+        data: error.response?.data,
+        config: error.config,
+      });
 
-  const endSession = (tableNumber) => {
-    axios
-      .post(`http://localhost:8080/api/tables/${tableNumber}/end-session`)
-      .then(() => {
-        toast.success(`Session ended for Table ${tableNumber}`);
-        // Update locally immediately for better UX
-        setActiveTables((prev) => prev.filter((t) => t !== tableNumber));
-      })
-      .catch(() => toast.error("Failed to end session"));
+      // Handle token expiration specifically
+      if (error.response?.status === 401) {
+        toast.error("Session expired. Please login again.");
+        // Add your logout logic here
+        logoutUser();
+      } else {
+        toast.error(error.response?.data?.message || "Failed to confirm order");
+      }
+    }
   };
 
   const calculateWaitTime = (requestTime) => {
@@ -234,24 +263,18 @@ export function WaiterDashboard() {
       return new Date(a.requestTime) - new Date(b.requestTime);
     });
 
-  // Add this function to the WaiterDashboard component
   const processBillAndEndSession = async (tableNumber) => {
     try {
-      // First mark the bill as processed
-      await axios.post(
-        `http://localhost:8080/api/tables/${tableNumber}/process-bill`
-      );
-
-      // Then end the session
-      await axios.post(
-        `http://localhost:8080/api/tables/${tableNumber}/end-session`
-      );
+      await api.post(`/api/tables/${tableNumber}/process-bill`);
+      await api.post(`/api/tables/${tableNumber}/end-session`);
 
       toast.success(
         `Bill processed and session ended for Table ${tableNumber}`
       );
+      setActiveTables((prev) => prev.filter((t) => t !== tableNumber));
     } catch (error) {
-      toast.error("Failed to process bill and end session");
+      console.error("Process bill error:", error.response?.data);
+      toast.error(error.response?.data?.message || "Failed to process bill");
     }
   };
 
