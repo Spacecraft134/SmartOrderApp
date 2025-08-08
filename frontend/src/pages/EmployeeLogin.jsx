@@ -4,7 +4,6 @@ import { FiLogIn } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { useAuth } from "../pages/Context/AuthContext";
 import { motion } from "framer-motion";
-import api from "./Utils/api";
 
 export default function EmployeeLogin() {
   const [credentials, setCredentials] = useState({
@@ -20,62 +19,30 @@ export default function EmployeeLogin() {
     setLoading(true);
 
     try {
-      // Make the API call directly
-      const response = await api.post("/api/employee/login", {
+      const { success, error, user } = await employeeLogin({
         username: credentials.username.trim(),
         password: credentials.password.trim(),
       });
 
-      console.log("Login response:", response.data);
-
-      if (response.data.token && response.data.user) {
-        // Save token and user data to context/localStorage
-        const { token, user } = response.data;
-
-        // Update auth context with employee data
-        const { success, error } = await employeeLogin({
-          username: credentials.username.trim(),
-          password: credentials.password.trim(),
-        });
-
-        if (success) {
-          toast.success(`Welcome back, ${user.name}!`);
-
-          // Role-based navigation
-          switch (user.role) {
-            case "WAITER":
-              navigate("/waiter-dashboard");
-              break;
-            case "KITCHEN":
-              navigate("/kitchen-dashboard");
-              break;
-            case "ADMIN":
-              navigate("/admin-dashboard");
-              break;
-            default:
-              // Fallback for any unexpected roles
-              navigate("/employee-dashboard");
-              break;
-          }
-        } else {
-          toast.error(error || "Login failed");
+      if (success && user) {
+        // Role-based navigation
+        switch (user.role) {
+          case "WAITER":
+            navigate("/employee/waiter-dashboard");
+            break;
+          case "KITCHEN":
+            navigate("/employee/kitchen-dashboard");
+            break;
+          default:
+            navigate("/unauthorized");
+            break;
         }
       } else {
-        toast.error("Invalid response from server");
+        toast.error(error || "Login failed");
       }
     } catch (error) {
       console.error("Login Error:", error);
-
-      // Handle specific error cases
-      if (error.response?.status === 401) {
-        toast.error("Invalid username or password");
-      } else if (error.response?.status === 403) {
-        toast.error("Account is inactive or unauthorized");
-      } else {
-        toast.error(
-          error.response?.data?.message || "Login failed. Please try again."
-        );
-      }
+      toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }

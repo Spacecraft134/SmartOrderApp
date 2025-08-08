@@ -39,10 +39,6 @@ public class SecurityConfig {
                 .requestMatchers("/api/employee/login").permitAll()
                 .requestMatchers("/api/employee/verify-credentials").permitAll()
 
-                // Protect all other employee endpoints
-                .requestMatchers("/api/employee/**").hasAnyAuthority("ROLE_WAITER", "ROLE_KITCHEN")
-
-
                 // Other public endpoints
                 .requestMatchers(
                     "/login",
@@ -55,10 +51,18 @@ public class SecurityConfig {
                     "/api/tables/*/session-status",
                     "/api/orders/by-table/*",
                     "/customerOrder/**",
-                    "/thank-you/**",
-                    "/api/employee/login"
-                  
+                    "/thank-you/**"
                 ).permitAll()
+
+                // SPECIFIC ORDER ENDPOINTS FIRST (most specific patterns first!)
+                .requestMatchers(HttpMethod.GET, "/api/orders/pending").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/orders/*/progress").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/orders/*/ready").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/orders").permitAll() // Allow customers to place orders
+                
+                // GENERAL ORDER ENDPOINTS (less specific patterns after specific ones)
+                .requestMatchers(HttpMethod.GET, "/api/orders/**").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN", "ROLE_WAITER")
+                .requestMatchers(HttpMethod.GET, "/api/orders").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN", "ROLE_WAITER")
 
                 // Table endpoints
                 .requestMatchers(HttpMethod.POST, "/api/tables/*/start-session").permitAll()
@@ -71,18 +75,11 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/help-requests/all-active-request").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/help-requests/**").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
 
-                // Order endpoints
-                .requestMatchers(HttpMethod.GET, "/api/orders/pending").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/orders/{id}/progress").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
-                .requestMatchers(HttpMethod.POST, "/api/orders").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
+                // Protect all other employee endpoints (after specific endpoints)
+                .requestMatchers("/api/employee/**").hasAnyAuthority("ROLE_WAITER", "ROLE_KITCHEN", "ROLE_ADMIN")
 
                 // Admin-only endpoints
                 .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
-
-
-                // Kitchen endpoints
-                .requestMatchers(HttpMethod.GET, "/api/orders").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN", "ROLE_WAITER")
-                .requestMatchers(HttpMethod.PUT, "/api/orders/*/ready").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN")
 
                 // Fallback: any other request requires authentication
                 .anyRequest().authenticated()
@@ -92,9 +89,12 @@ public class SecurityConfig {
             )
             .exceptionHandling(exception -> exception
                 .authenticationEntryPoint((request, response, authException) -> {
+                    System.out.println("Authentication failed for: " + request.getRequestURI() + " - " + authException.getMessage());
                     response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
                 })
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    System.out.println("Access denied for: " + request.getRequestURI() + " - User authorities: " + 
+                        (response.getHeader("X-User-Authorities") != null ? response.getHeader("X-User-Authorities") : "Unknown"));
                     response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied");
                 })
             )

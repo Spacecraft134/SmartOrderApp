@@ -207,6 +207,22 @@ public class UserController {
             );
         }
     }
+    @PostMapping("/api/employee/logout")
+    public ResponseEntity<?> employeeLogout(HttpServletRequest request, HttpServletResponse response) {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null) {
+                new SecurityContextLogoutHandler().logout(request, response, auth);
+            }
+            return ResponseEntity.ok().body(Map.of(
+                "message", "Employee logout successful"
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                Map.of("message", "Employee logout failed: " + e.getMessage())
+            );
+        }
+    }
 
     // =======================
     // Get users by restaurant (admin only)
@@ -368,4 +384,8 @@ public class UserController {
                 .body("Error deleting user: " + e.getMessage());
         }
     }
+    
+    
+    
+    
 }
