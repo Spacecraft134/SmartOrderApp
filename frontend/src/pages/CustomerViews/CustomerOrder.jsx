@@ -233,7 +233,6 @@ export function CustomerOrder() {
     }
   };
 
-  // Send help request for this table
   const handleHelpRequest = (reason = helpReason) => {
     if (!tableID) {
       toast.warning("Please enter your Table ID to request help!");
@@ -242,6 +241,8 @@ export function CustomerOrder() {
     if (helpRequestSending) return;
 
     setHelpRequestSending(true);
+
+    // First send the help request
     axios
       .post("http://localhost:8080/api/help-requests", {
         tableNumber: tableID,
@@ -256,8 +257,15 @@ export function CustomerOrder() {
         setIsHelpDropdownOpen(false);
         setTimeout(() => setHelpRequested(false), 30000);
 
+        // Special handling for bill requests
         if (reason === "Need bill") {
-          axios.post(`http://localhost:8080/api/tables/${tableID}/end-session`);
+          if (clientRef.current) {
+            clientRef.current.publish({
+              destination: "/app/notify-bill",
+              body: JSON.stringify({ tableNumber: tableID }),
+            });
+            toast.info("Bill request sent to staff");
+          }
         }
       })
       .catch(() => toast.error("Failed to send help request"))

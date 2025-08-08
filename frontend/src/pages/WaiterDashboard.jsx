@@ -203,35 +203,40 @@ export function WaiterDashboard() {
       );
     }
   };
-
   const confirmOrder = async (id) => {
     try {
-      const response = await api.put(`/api/orders/${id}/progress`);
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("No token found");
 
-      if (response.status === 200) {
-        toast.success("Order confirmed");
-        setOrders((prev) => prev.filter((order) => order.id !== id));
-      } else {
-        throw new Error(response.data?.message || "Failed to confirm order");
-      }
+      const response = await api.put(`/api/orders/${id}/progress`);
+      // ... success handling
     } catch (error) {
-      console.error("Order confirmation error:", {
+      console.error("Full error context:", {
+        error: error.message,
         status: error.response?.status,
-        data: error.response?.data,
-        config: error.config,
+        tokenExists: !!localStorage.getItem("token"),
+        isAuthError: error.isAuthError,
       });
 
-      // Handle token expiration specifically
-      if (error.response?.status === 401) {
-        toast.error("Session expired. Please login again.");
-        // Add your logout logic here
-        logoutUser();
-      } else {
-        toast.error(error.response?.data?.message || "Failed to confirm order");
+      if (error.isAuthError) {
+        toast.warning("Session expired - but token still exists");
+        // Add manual token validation
+        const token = localStorage.getItem("token");
+        if (token) {
+          try {
+            const payload = JSON.parse(atob(token.split(".")[1]));
+            if (payload.exp < Date.now() / 1000) {
+              toast.error("Token expired at: " + new Date(payload.exp * 1000));
+              localStorage.removeItem("token");
+            }
+          } catch (e) {
+            console.error("Token validation failed:", e);
+            localStorage.removeItem("token");
+          }
+        }
       }
     }
   };
-
   const calculateWaitTime = (requestTime) => {
     const now = new Date();
     const requestDate = new Date(requestTime);

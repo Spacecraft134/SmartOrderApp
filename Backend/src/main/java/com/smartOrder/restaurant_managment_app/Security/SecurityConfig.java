@@ -65,14 +65,15 @@ public class SecurityConfig {
                 
                 // Order endpoints
                 .requestMatchers(HttpMethod.GET, "/api/orders/pending").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/orders/**/progress").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/orders/{id}/progress").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/orders").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
                 // Admin-only endpoints
                 .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
                 
                 // Kitchen endpoints
                 .requestMatchers(HttpMethod.GET, "/api/orders").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN", "ROLE_WAITER")
-                
+                .requestMatchers(HttpMethod.PUT, "/api/orders/*/ready").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN")
+
                 // Employee endpoints
                 .requestMatchers("/api/employee/**").hasAnyAuthority("ROLE_WAITER", "ROLE_KITCHEN")
                 

@@ -22,14 +22,20 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("userData");
-      window.location.href = "/login?sessionExpired=true";
+    // Only process API errors
+    if (error.config?.url.startsWith("/api")) {
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        console.warn("Auth error detected at:", error.config.url);
+
+        // Return special error object instead of clearing storage
+        return Promise.reject({
+          ...error,
+          isAuthError: true, // Custom flag
+        });
+      }
     }
     return Promise.reject(error);
   }

@@ -14,6 +14,7 @@ import {
   FiChevronUp,
   FiRotateCw,
 } from "react-icons/fi";
+import api from "./Utils/api";
 
 const menuItemCache = new Map();
 
@@ -170,8 +171,8 @@ export function KitchenDashboard() {
   }, []);
 
   const markOrderReady = (id) => {
-    axios
-      .put(`http://localhost:8080/api/orders/${id}/ready`)
+    api
+      .put(`/api/orders/${id}/ready`)
       .then(() => {
         toast.success("Order marked READY");
         setOrders((prev) => prev.filter((order) => order.id !== id));

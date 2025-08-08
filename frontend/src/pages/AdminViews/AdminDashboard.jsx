@@ -512,7 +512,7 @@ export function AdminDashboard() {
       >
         <DialogTitle className="flex justify-between items-center bg-white shadow-sm sticky top-0 z-10">
           <span className="text-xl font-semibold">
-            Admin View: Waiter DashBoard
+            Admin View: Waiter DashBoard(NOTE: VIEW IS UNSTABLE FOR ADMIN)
           </span>
           <IconButton
             onClick={() => setOpenWaiter(false)}
