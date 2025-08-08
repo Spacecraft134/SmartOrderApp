@@ -158,47 +158,34 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // In AuthContext.js
   const employeeLogin = async (credentials) => {
     try {
       const response = await api.post("/api/employee/login", credentials);
 
-      if (response.data?.token) {
-        // Clear any existing admin auth
-        clearAuth();
+      // Properly extract ALL needed fields
+      const { token, username, role, name, restaurantId } = response.data;
 
-        const { token, username, role, name, restaurantId } = response.data;
-
-        const userData = {
-          name,
-          role,
-          email: username,
-          token,
-          restaurantId,
-        };
-
-        localStorage.setItem("employeeToken", token);
-        localStorage.setItem("employeeData", JSON.stringify(userData));
-        api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-        setUser(userData);
-
-        // Notify other tabs
-        new BroadcastChannel(EMPLOYEE_AUTH_CHANNEL).postMessage({
-          type: "EMPLOYEE_LOGIN",
-        });
-
-        return { success: true, user: userData, error: null };
-      }
-
-      return {
-        success: false,
-        user: null,
-        error: response.data?.message || "Login failed",
+      const userData = {
+        name,
+        role,
+        email: username,
+        token,
+        restaurantId,
       };
+
+      localStorage.setItem("employeeToken", token);
+      localStorage.setItem("employeeData", JSON.stringify(userData));
+
+      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      setUser(userData);
+
+      return { success: true, error: null };
     } catch (error) {
+      console.error("Employee login failed:", error);
       return {
         success: false,
-        user: null,
-        error: error.response?.data?.message || "Network error",
+        error: error.response?.data?.message || error.message,
       };
     }
   };

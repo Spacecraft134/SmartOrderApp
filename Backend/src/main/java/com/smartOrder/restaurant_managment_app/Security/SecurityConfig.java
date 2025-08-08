@@ -35,49 +35,56 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                // Public endpoints
+                // Public endpoints first — order matters!
+                .requestMatchers("/api/employee/login").permitAll()
+                .requestMatchers("/api/employee/verify-credentials").permitAll()
+
+                // Protect all other employee endpoints
+                .requestMatchers("/api/employee/**").hasAnyAuthority("ROLE_WAITER", "ROLE_KITCHEN")
+
+
+                // Other public endpoints
                 .requestMatchers(
                     "/login",
-                    "/register",
                     "/register-admin/**",
                     "/api/auth/**",
                     "/uploads/**",
                     "/error",
-                    "/api/employee/login",
                     "/api/menu/public",
                     "/ws/**",
-                    "/api/tables/*/session-status",  
-                    "/api/orders/by-table/*",       
-                    "/customerOrder/**",            
-                    "/thank-you/**"                
+                    "/api/tables/*/session-status",
+                    "/api/orders/by-table/*",
+                    "/customerOrder/**",
+                    "/thank-you/**",
+                    "/api/employee/login"
+                  
                 ).permitAll()
-                
+
                 // Table endpoints
                 .requestMatchers(HttpMethod.POST, "/api/tables/*/start-session").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/tables/*/process-bill").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/tables/*/end-session").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/tables/active").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
-                
+
                 // Help request endpoints
                 .requestMatchers(HttpMethod.POST, "/api/help-requests").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/help-requests/all-active-request").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/help-requests/**").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
-                
+
                 // Order endpoints
                 .requestMatchers(HttpMethod.GET, "/api/orders/pending").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/orders/{id}/progress").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/orders").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
+
                 // Admin-only endpoints
                 .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
-                
+
+
                 // Kitchen endpoints
                 .requestMatchers(HttpMethod.GET, "/api/orders").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN", "ROLE_WAITER")
                 .requestMatchers(HttpMethod.PUT, "/api/orders/*/ready").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN")
 
-                // Employee endpoints
-                .requestMatchers("/api/employee/**").hasAnyAuthority("ROLE_WAITER", "ROLE_KITCHEN")
-                
-                // Fallback - any other request needs authentication
+                // Fallback: any other request requires authentication
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session

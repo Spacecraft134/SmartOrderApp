@@ -112,25 +112,6 @@ public class UserService {
       return userRepo.save(user);
   }
 
-    // Invite waiter with restaurant validation
-    public Users inviteWaiter(Users user, Integer restaurantId) {
-        user.setRestaurantId(restaurantId);
-        user.setRole(Users.Role.WAITER);
-        user.setPassword(passwordEncoder.encode("temporary123")); // Default password
-        user.setActive(false); // Needs activation
-        
-        return userRepo.save(user);
-    }
-
-    // Invite kitchen staff with restaurant validation
-    public Users inviteKitchenUser(Users user, Integer restaurantId) {
-        user.setRestaurantId(restaurantId);
-        user.setRole(Users.Role.KITCHEN);
-        user.setPassword(passwordEncoder.encode("temporary123")); // Default password
-        user.setActive(false); // Needs activation
-        
-        return userRepo.save(user);
-    }
     
     public Users toggleUserStatus(Integer userId, boolean active) {
       Users user = userRepo.findById(userId)

@@ -68,13 +68,26 @@ export default function UserManagement() {
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
+
+    // Add password validation
+    if (!newUser.password) {
+      toast.error("Password is required");
+      return;
+    }
+
+    const passwordError = validatePassword(newUser.password);
+    if (passwordError) {
+      toast.error(passwordError);
+      return;
+    }
+
     setIsCreating(true);
     try {
       const response = await api.post(`/restaurant/${user.restaurantId}`, {
         name: newUser.name,
         username: newUser.username,
-        password: newUser.password || "defaultPassword123",
-        role: newUser.role, // WAITER or KITCHEN only
+        password: newUser.password,
+        role: newUser.role,
       });
 
       toast.success("User created successfully!");

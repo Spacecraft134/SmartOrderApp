@@ -5,6 +5,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -26,9 +27,9 @@ public class JWTService {
 
     public String generateToken(UserDetails userDetails) {
       Map<String, Object> claims = new HashMap<>();
-      // Extract authorities with ROLE_ prefix
+      // Remove manual ROLE_ prefix addition
       claims.put("roles", userDetails.getAuthorities().stream()
-              .map(grantedAuthority -> "ROLE_" + grantedAuthority.getAuthority())
+              .map(GrantedAuthority::getAuthority) // Keep authority as-is
               .collect(Collectors.toList()));
       return buildToken(claims, userDetails.getUsername());
   }
