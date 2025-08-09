@@ -1,15 +1,132 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   FiUser,
   FiLock,
-  FiShield,
-  FiMail,
   FiCheck,
-  FiEdit,
+  FiTrash2,
+  FiAlertTriangle,
+  FiMail,
 } from "react-icons/fi";
 
 export function Setting() {
   const [activeTab, setActiveTab] = useState("account");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [userData, setUserData] = useState(null);
+
+  // Password reset states
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    // Get user data from localStorage
+    try {
+      const storedUserData = localStorage.getItem("userData");
+      if (storedUserData) {
+        setUserData(JSON.parse(storedUserData));
+      }
+    } catch (error) {
+      console.error("Error reading userData from localStorage:", error);
+      // Fallback data for demonstration (since localStorage isn't available in artifacts)
+    }
+  }, []);
+
+  const handlePasswordReset = async () => {
+    setError("");
+    setSuccess("");
+    setIsLoading(true);
+
+    try {
+      console.log(
+        "Sending request to:",
+        "http://localhost:8080/api/auth/forgot-password"
+      );
+      console.log("With email:", userData?.email);
+
+      // IMPORTANT: Using absolute URL to Spring Boot backend
+      const response = await fetch(
+        "http://localhost:8080/api/auth/forgot-password",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: userData?.email,
+          }),
+        }
+      );
+
+      console.log("Response status:", response.status);
+      console.log("Response OK:", response.ok);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Response data:", data);
+
+      // Your backend always returns success: true for security reasons
+      if (data.success) {
+        setSuccess(
+          data.message ||
+            "Password reset link has been sent to your email address. Please check your inbox and spam folder."
+        );
+      } else {
+        setError(
+          data.message || "Failed to send reset email. Please try again."
+        );
+      }
+    } catch (err) {
+      console.error("Password reset error:", err);
+      if (err.message.includes("Failed to fetch")) {
+        setError(
+          "Unable to connect to server. Please ensure the backend is running on port 8080."
+        );
+      } else {
+        setError(
+          "Network error occurred. Please check your connection and try again."
+        );
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAccountTermination = async () => {
+    try {
+      // Replace with your actual API call for account termination
+      const response = await fetch(
+        "http://localhost:8080/api/auth/terminate-account",
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${userData?.token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        alert(
+          "Account has been successfully terminated. You will be logged out."
+        );
+        // Clear localStorage and redirect to login
+        localStorage.removeItem("userData");
+        window.location.href = "/login";
+      } else {
+        alert(data.message || "Failed to terminate account. Please try again.");
+      }
+    } catch (err) {
+      alert("Network error occurred. Please try again.");
+      console.error("Account termination error:", err);
+    }
+
+    setShowDeleteConfirm(false);
+  };
 
   return (
     <div className="max-w-3xl mx-auto p-6">
@@ -24,7 +141,11 @@ export function Setting() {
       {/* Settings Navigation */}
       <div className="flex mb-8 border-b border-gray-200">
         <button
-          onClick={() => setActiveTab("account")}
+          onClick={() => {
+            setActiveTab("account");
+            setError("");
+            setSuccess("");
+          }}
           className={`px-4 py-2 font-medium ${
             activeTab === "account"
               ? "border-b-2 border-blue-600 text-blue-600"
@@ -34,17 +155,11 @@ export function Setting() {
           Account
         </button>
         <button
-          onClick={() => setActiveTab("security")}
-          className={`px-4 py-2 font-medium ${
-            activeTab === "security"
-              ? "border-b-2 border-blue-600 text-blue-600"
-              : "text-gray-600 hover:text-gray-900"
-          }`}
-        >
-          Security & Privacy
-        </button>
-        <button
-          onClick={() => setActiveTab("password")}
+          onClick={() => {
+            setActiveTab("password");
+            setError("");
+            setSuccess("");
+          }}
           className={`px-4 py-2 font-medium ${
             activeTab === "password"
               ? "border-b-2 border-blue-600 text-blue-600"
@@ -52,26 +167,6 @@ export function Setting() {
           }`}
         >
           Password
-        </button>
-        <button
-          onClick={() => setActiveTab("profile")}
-          className={`px-4 py-2 font-medium ${
-            activeTab === "profile"
-              ? "border-b-2 border-blue-600 text-blue-600"
-              : "text-gray-600 hover:text-gray-900"
-          }`}
-        >
-          Profile
-        </button>
-        <button
-          onClick={() => setActiveTab("email")}
-          className={`px-4 py-2 font-medium ${
-            activeTab === "email"
-              ? "border-b-2 border-blue-600 text-blue-600"
-              : "text-gray-600 hover:text-gray-900"
-          }`}
-        >
-          Email Notifications
         </button>
       </div>
 
@@ -88,68 +183,46 @@ export function Setting() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Username
+                  Username/Email
                 </label>
                 <input
                   type="text"
-                  defaultValue="yourusername"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  value={userData?.email || "Loading..."}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
+                  placeholder="Enter username or email"
+                  readOnly
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
-                </label>
-                <div className="flex">
-                  <input
-                    type="email"
-                    defaultValue="user@example.com"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <button className="px-3 py-2 bg-gray-100 border border-l-0 border-gray-300 rounded-r-md text-sm font-medium hover:bg-gray-200">
-                    Verify
-                  </button>
-                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Role: {userData?.role || "Loading..."} | Name:{" "}
+                  {userData?.name || "Loading..."}
+                </p>
               </div>
             </div>
-          </div>
-        )}
 
-        {/* Security & Privacy Tab */}
-        {activeTab === "security" && (
-          <div className="p-6 space-y-6">
-            <div className="flex items-center">
-              <FiShield className="text-blue-500 mr-3 text-lg" />
-              <h2 className="text-lg font-semibold">Security & Privacy</h2>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700">
-                    Two-factor authentication
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    Add an extra layer of security
-                  </p>
-                </div>
-                <button className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-md text-sm font-medium">
-                  Enable
-                </button>
+            {/* Account Termination Section */}
+            <div className="border-t pt-6 mt-8">
+              <div className="flex items-center mb-4">
+                <FiAlertTriangle className="text-red-500 mr-3 text-lg" />
+                <h3 className="text-lg font-semibold text-red-600">
+                  Danger Zone
+                </h3>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700">
-                    Data privacy
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    Manage your data sharing preferences
-                  </p>
-                </div>
-                <button className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-md text-sm font-medium">
-                  Manage
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <h4 className="font-medium text-red-800 mb-2">
+                  Terminate Account
+                </h4>
+                <p className="text-sm text-red-600 mb-3">
+                  Once you delete your account, there is no going back. This
+                  action cannot be undone. All your data will be permanently
+                  deleted.
+                </p>
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors flex items-center text-sm font-medium"
+                >
+                  <FiTrash2 className="mr-2" />
+                  Terminate Account
                 </button>
               </div>
             </div>
@@ -161,137 +234,153 @@ export function Setting() {
           <div className="p-6 space-y-6">
             <div className="flex items-center">
               <FiLock className="text-blue-500 mr-3 text-lg" />
-              <h2 className="text-lg font-semibold">Password</h2>
+              <h2 className="text-lg font-semibold">Reset Password</h2>
+            </div>
+
+            {/* Success Message */}
+            {success && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center">
+                  <FiCheck className="text-green-500 mr-2" />
+                  <p className="text-sm text-green-700">{success}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center">
+                  <FiAlertTriangle className="text-red-500 mr-2" />
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start">
+                <FiMail className="text-blue-500 mr-2 mt-0.5" />
+                <div>
+                  <p className="text-sm text-blue-700 mb-2">
+                    We'll send a secure password reset link to your registered
+                    email address. Follow the instructions in the email to
+                    create a new password.
+                  </p>
+                  <p className="text-xs text-blue-600">
+                    The reset link will be valid for 1 hour. Please check your
+                    spam folder if you don't see the email.
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Current Password
+                  Email Address
                 </label>
                 <input
-                  type="password"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  type="email"
+                  value={userData?.email || "Loading..."}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
+                  readOnly
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  This is the email associated with your account
+                </p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  New Password
-                </label>
-                <input
-                  type="password"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Confirm New Password
-                </label>
-                <input
-                  type="password"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Profile Tab */}
-        {activeTab === "profile" && (
-          <div className="p-6 space-y-6">
-            <div className="flex items-center">
-              <FiUser className="text-blue-500 mr-3 text-lg" />
-              <h2 className="text-lg font-semibold">Profile Information</h2>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
-                  <FiUser className="text-gray-500 text-xl" />
-                </div>
-                <div>
-                  <button className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-md text-sm font-medium">
-                    Change Photo
-                  </button>
-                  <p className="text-xs text-gray-500 mt-1">
-                    JPG, GIF or PNG. Max size 2MB
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Display Name
-                </label>
-                <input
-                  type="text"
-                  defaultValue="John Doe"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Bio
-                </label>
-                <textarea
-                  rows={3}
-                  defaultValue="Product designer, photographer, and tech enthusiast."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Email Notifications Tab */}
-        {activeTab === "email" && (
-          <div className="p-6 space-y-6">
-            <div className="flex items-center">
-              <FiMail className="text-blue-500 mr-3 text-lg" />
-              <h2 className="text-lg font-semibold">Email Notifications</h2>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700">
-                    Account activity
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    Important notifications about your account
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    defaultChecked
-                  />
-                  <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700">
-                    Promotional emails
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    Updates about new features and offers
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" />
-                  <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                </label>
-              </div>
+              <button
+                onClick={handlePasswordReset}
+                disabled={isLoading || !userData?.email}
+                className={`px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center text-sm font-medium ${
+                  isLoading || !userData?.email
+                    ? "opacity-50 cursor-not-allowed"
+                    : ""
+                }`}
+              >
+                {isLoading ? (
+                  <>
+                    <svg
+                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Sending Reset Link...
+                  </>
+                ) : (
+                  <>
+                    <FiLock className="mr-2" />
+                    Send Reset Link
+                  </>
+                )}
+              </button>
             </div>
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <FiAlertTriangle className="text-red-500 mr-3 text-xl" />
+              <h3 className="text-lg font-semibold text-red-600">
+                Confirm Account Termination
+              </h3>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-600 mb-4">
+                Are you absolutely sure you want to terminate your account? This
+                action is permanent and cannot be undone.
+              </p>
+              <div className="bg-red-50 border border-red-200 rounded p-3">
+                <p className="text-sm text-red-700 font-medium">
+                  The following will be permanently deleted:
+                </p>
+                <ul className="text-sm text-red-600 mt-1 list-disc list-inside">
+                  <li>Your profile and account data</li>
+                  <li>All restaurant data and settings</li>
+                  <li>Order history and analytics</li>
+                  <li>All associated files and images</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAccountTermination}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium"
+              >
+                Terminate Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
