@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { FiLogIn } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { useAuth } from "../pages/Context/AuthContext";
@@ -130,10 +130,12 @@ export default function EmployeeLogin() {
           </form>
 
           <div className="text-center text-gray-400 text-sm mt-4">
-            Forgot your password?{" "}
-            <a href="#" className="text-cyan-400 hover:text-cyan-300">
-              Reset here
-            </a>
+            <Link
+              to="/forgot-password"
+              className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
+            >
+              Forgot password?
+            </Link>
           </div>
         </motion.div>
       </motion.div>
