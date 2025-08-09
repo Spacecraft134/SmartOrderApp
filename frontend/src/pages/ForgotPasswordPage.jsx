@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import api from "../pages/Utils/api";
 
 const ForgotPasswordPage = () => {
@@ -23,11 +23,11 @@ const ForgotPasswordPage = () => {
     setIsLoading(true);
 
     try {
-      await api.post("/auth/forgot-password", { email });
-      setSuccess("Password reset link sent to your email");
+      const response = await api.post("/api/auth/forgot-password", { email });
+      setSuccess(response.data.message || "Reset link sent to your email");
+      setEmail("");
     } catch (err) {
-      console.error("Error:", err);
-      setError(err.response?.data?.message || "Failed to send reset link");
+      setError(err.response?.data?.message || "Error sending reset link");
     } finally {
       setIsLoading(false);
     }

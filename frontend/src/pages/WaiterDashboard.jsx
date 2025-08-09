@@ -299,7 +299,8 @@ export function WaiterDashboard() {
   const handleLogout = async () => {
     try {
       await api.post("/api/employee/logout");
-      localStorage.removeItem("token");
+      localStorage.removeItem("EmployeeData");
+      localStorage.removeItem("EmployeeToken");
       navigate("/employee/login");
     } catch (error) {
       console.error("Logout failed:", error);
@@ -309,21 +310,14 @@ export function WaiterDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 w-full">
-      <header className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-12 px-8 shadow-xl w-full">
-        <div className="max-w-full mx-auto">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            Waiter Dashboard
-          </h1>
-
-          {userRole === "WAITER" && (
-            <h6 className="text-4xl md:text-5xl font-bold mb-4">
-              Hello, {userName}
-            </h6>
-          )}
-          <p className="text-xl text-blue-100">
-            Manage help requests, orders, and table sessions
-          </p>
-
+      <header className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-8 px-8 shadow-xl w-full">
+        <div className="max-w-full mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold">Waiter Dashboard</h1>
+            {userRole === "WAITER" && (
+              <h2 className="text-3xl font-bold mt-2">Hello, {userName}</h2>
+            )}
+          </div>
           {userRole === "WAITER" && (
             <button
               onClick={handleLogout}
@@ -336,156 +330,148 @@ export function WaiterDashboard() {
         </div>
       </header>
 
-      <main className="w-full px-8 py-12 -mt-8">
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 max-w-full">
+      <main className="w-full px-8 py-8 -mt-4">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 h-full">
           {/* Left column: Help Requests */}
           <div className="w-full">
             <motion.div
-              className="bg-white rounded-2xl shadow-2xl p-8 mb-8 border border-gray-200"
+              className="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-gray-200 h-full"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
             >
-              <div className="flex flex-col lg:flex-row gap-8">
-                <div className="flex-1">
-                  <h2 className="text-2xl font-semibold text-gray-800 mb-6">
-                    Request Filters
-                  </h2>
-                  <div className="flex flex-wrap gap-4">
-                    {["all", "urgent", "recent"].map((type) => (
-                      <button
-                        key={type}
-                        onClick={() => setFilter(type)}
-                        className={`px-6 py-3 rounded-xl text-lg font-medium transition-all ${
-                          filter === type
-                            ? type === "urgent"
-                              ? "bg-red-600 text-white shadow-lg shadow-red-200"
-                              : type === "recent"
-                              ? "bg-green-600 text-white shadow-lg shadow-green-200"
-                              : "bg-blue-600 text-white shadow-lg shadow-blue-200"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                        }`}
-                      >
-                        {type === "all"
-                          ? "All Requests"
-                          : type === "urgent"
-                          ? "Urgent"
-                          : "Recent (5m)"}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="w-full lg:w-80">
-                  <label className="block text-lg font-medium text-gray-700 mb-3">
-                    Search Requests
-                  </label>
-                  <div className="relative">
-                    <FiSearch className="absolute left-4 top-4 text-gray-400 text-xl" />
-                    <input
-                      type="text"
-                      placeholder="Table # or reason..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-12 pr-4 py-4 text-lg rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {loading ? (
-              <div className="flex justify-center py-16">
-                <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
-              </div>
-            ) : filteredRequests.length === 0 ? (
-              <motion.div
-                className="bg-white p-12 rounded-2xl shadow-lg border text-center"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
-                <p className="text-xl text-gray-500">
-                  {requests.length === 0
-                    ? "No active requests"
-                    : "No requests match your filters"}
-                </p>
-              </motion.div>
-            ) : (
-              <div className="grid gap-6">
-                {filteredRequests.map((req) => (
-                  <motion.div
-                    key={req.id}
-                    className={`bg-white rounded-2xl shadow-lg border-l-8 ${
-                      req.isUrgent
-                        ? "border-red-500 animate-pulse"
-                        : "border-blue-500"
+              <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+                Request Filters
+              </h2>
+              <div className="flex flex-wrap gap-4 mb-6">
+                {["all", "urgent", "recent"].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setFilter(type)}
+                    className={`px-6 py-3 rounded-xl text-lg font-medium transition-all ${
+                      filter === type
+                        ? type === "urgent"
+                          ? "bg-red-600 text-white shadow-lg shadow-red-200"
+                          : type === "recent"
+                          ? "bg-green-600 text-white shadow-lg shadow-green-200"
+                          : "bg-blue-600 text-white shadow-lg shadow-blue-200"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     }`}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
                   >
-                    <div className="p-8 flex justify-between items-start">
-                      <div>
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-2xl font-bold">
-                            Table #{req.tableNumber}
-                          </h3>
-                          {req.isUrgent && (
-                            <span className="flex items-center gap-2 text-sm px-3 py-2 bg-red-100 text-red-800 rounded-full font-medium">
-                              <FiAlertTriangle size={16} /> URGENT
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 text-lg text-gray-500">
-                          <span>
-                            <FiClock size={18} className="inline mr-2" />
-                            {calculateWaitTime(req.requestTime)}
-                          </span>
-                          {req.reason && (
-                            <>
-                              <span>•</span>
-                              <span className="capitalize font-medium text-indigo-600">
-                                {req.reason}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => deleteRequest(req.id)}
-                        className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl text-lg transition-colors"
-                      >
-                        <FiTrash2 size={18} />
-                        Delete
-                      </button>
-                    </div>
-                  </motion.div>
+                    {type === "all"
+                      ? "All Requests"
+                      : type === "urgent"
+                      ? "Urgent"
+                      : "Recent (5m)"}
+                  </button>
                 ))}
               </div>
-            )}
+
+              <div className="mb-8">
+                <label className="block text-lg font-medium text-gray-700 mb-3">
+                  Search Requests
+                </label>
+                <div className="relative">
+                  <FiSearch className="absolute left-4 top-4 text-gray-400 text-xl" />
+                  <input
+                    type="text"
+                    placeholder="Table # or reason..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-12 pr-4 py-4 text-lg rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="flex justify-center py-16 h-64">
+                  <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
+                </div>
+              ) : filteredRequests.length === 0 ? (
+                <div className="bg-gray-50 p-12 rounded-xl text-center h-64 flex items-center justify-center">
+                  <p className="text-xl text-gray-500">
+                    {requests.length === 0
+                      ? "No active requests"
+                      : "No requests match your filters"}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4 max-h-[500px] overflow-y-auto">
+                  {filteredRequests.map((req) => (
+                    <motion.div
+                      key={req.id}
+                      className={`bg-white rounded-xl shadow-lg border-l-8 ${
+                        req.isUrgent
+                          ? "border-red-500 animate-pulse"
+                          : "border-blue-500"
+                      }`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className="p-6 flex justify-between items-start">
+                        <div>
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-2xl font-bold">
+                              Table #{req.tableNumber}
+                            </h3>
+                            {req.isUrgent && (
+                              <span className="flex items-center gap-2 text-sm px-3 py-2 bg-red-100 text-red-800 rounded-full font-medium">
+                                <FiAlertTriangle size={16} /> URGENT
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 text-lg text-gray-500">
+                            <span>
+                              <FiClock size={18} className="inline mr-2" />
+                              {calculateWaitTime(req.requestTime)}
+                            </span>
+                            {req.reason && (
+                              <>
+                                <span>•</span>
+                                <span className="capitalize font-medium text-indigo-600">
+                                  {req.reason}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => deleteRequest(req.id)}
+                          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-lg"
+                        >
+                          <FiTrash2 size={18} />
+                          Delete
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
           </div>
 
           {/* Right column: Pending Orders */}
           <div className="w-full">
-            <div className="bg-white rounded-2xl shadow-2xl p-8 mb-8 border border-gray-200">
+            <div className="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-gray-200 h-full">
               <h2 className="text-2xl font-semibold text-gray-800 mb-6">
                 Pending Orders
               </h2>
               {loading ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-indigo-500"></div>
+                <div className="flex justify-center py-16 h-64">
+                  <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-500"></div>
                 </div>
               ) : orders.length === 0 ? (
-                <div className="bg-gray-50 p-12 rounded-2xl text-center text-xl text-gray-500 border-2 border-dashed">
-                  No pending orders
+                <div className="bg-gray-50 p-12 rounded-xl text-center h-64 flex items-center justify-center border-2 border-dashed">
+                  <p className="text-xl text-gray-500">No pending orders</p>
                 </div>
               ) : (
-                <div className="grid gap-6">
+                <div className="space-y-4 max-h-[500px] overflow-y-auto">
                   {orders.map((order) => (
                     <motion.div
                       key={order.id}
-                      className="bg-white rounded-2xl shadow-lg border-l-8 border-indigo-500 p-8"
+                      className="bg-white rounded-xl shadow-lg border-l-8 border-indigo-500 p-6"
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3 }}
@@ -517,7 +503,7 @@ export function WaiterDashboard() {
                         </div>
                         <button
                           onClick={() => confirmOrder(order.id)}
-                          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl text-lg transition-colors"
+                          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-lg"
                         >
                           <FiCheck size={18} />
                           Confirm
@@ -533,13 +519,13 @@ export function WaiterDashboard() {
 
         {/* Active Tables Section */}
         <motion.div
-          className="mt-12 bg-white rounded-2xl shadow-2xl p-8 border border-gray-200"
+          className="mt-8 bg-white rounded-2xl shadow-xl p-8 border border-gray-200"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
         >
           <div className="flex justify-between items-center mb-8">
-            <h2 className="text-3xl font-semibold text-gray-800">
+            <h2 className="text-2xl font-semibold text-gray-800">
               Active Table Sessions
             </h2>
             <span className="bg-blue-100 text-blue-800 text-lg font-medium px-6 py-3 rounded-full">
@@ -549,12 +535,12 @@ export function WaiterDashboard() {
 
           {loading ? (
             <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-blue-500"></div>
+              <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
             </div>
           ) : activeTables.length === 0 ? (
-            <div className="bg-gray-50 rounded-2xl p-16 text-center border-2 border-dashed border-gray-200">
+            <div className="bg-gray-50 rounded-xl p-16 text-center border-2 border-dashed border-gray-200">
               <div className="max-w-md mx-auto">
-                <div className="bg-gray-200 border-2 border-dashed rounded-2xl w-24 h-24 mx-auto mb-6" />
+                <div className="bg-gray-200 border-2 border-dashed rounded-xl w-24 h-24 mx-auto mb-6" />
                 <h3 className="text-2xl font-medium text-gray-900 mb-2">
                   No active sessions
                 </h3>
@@ -564,32 +550,32 @@ export function WaiterDashboard() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {activeTables.map((table) => (
                 <motion.div
                   key={table}
-                  className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-8 flex flex-col items-center shadow-lg hover:shadow-xl transition-shadow"
+                  className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6 flex flex-col items-center shadow-lg hover:shadow-xl transition-shadow"
                   whileHover={{ y: -5 }}
                 >
-                  <div className="bg-blue-100 w-24 h-24 rounded-full flex items-center justify-center mb-6">
-                    <span className="text-3xl font-bold text-blue-700">
+                  <div className="bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center mb-6">
+                    <span className="text-2xl font-bold text-blue-700">
                       T{table}
                     </span>
                   </div>
-                  <h3 className="font-semibold text-gray-800 text-2xl mb-4">
+                  <h3 className="font-semibold text-gray-800 text-xl mb-4">
                     Table {table}
                   </h3>
                   <div className="mt-auto flex flex-col space-y-3 w-full">
                     <button
                       onClick={() => processBillAndEndSession(table)}
-                      className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-xl text-lg font-medium transition-colors"
+                      className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-lg font-medium transition-colors"
                     >
                       <FiPower size={18} />
                       Process Bill & End
                     </button>
                     <Link
                       to={`/customerOrder/${table}`}
-                      className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl text-lg font-medium transition-colors"
+                      className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-lg font-medium transition-colors"
                     >
                       <FiEye size={18} />
                       View Menu
@@ -605,7 +591,7 @@ export function WaiterDashboard() {
       <ToastContainer
         position="top-center"
         autoClose={4000}
-        toastClassName="shadow-2xl rounded-2xl text-lg"
+        toastClassName="shadow-xl rounded-xl text-lg"
         progressClassName="bg-gradient-to-r from-blue-500 to-indigo-500"
         bodyClassName="font-medium text-gray-800 p-4"
       />

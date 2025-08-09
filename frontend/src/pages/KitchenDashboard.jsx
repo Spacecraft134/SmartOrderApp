@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import notificationSound from "../assets/ding-101492.mp3";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
-import axios from "axios";
 import {
   FiCheck,
   FiClock,
@@ -13,8 +12,10 @@ import {
   FiChevronDown,
   FiChevronUp,
   FiRotateCw,
+  FiLogOut,
 } from "react-icons/fi";
 import api from "./Utils/api";
+import { useNavigate } from "react-router-dom";
 
 const menuItemCache = new Map();
 
@@ -55,8 +56,13 @@ export function KitchenDashboard() {
   const [expandedOrders, setExpandedOrders] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const clientRef = useRef(null);
-
   const audioRef = useRef(null);
+  const navigate = useNavigate();
+  const [userName, setUserName] = useState("Admin");
+  const playedSoundOrders = useRef(new Set());
+
+  // Check if this is being accessed from admin view
+  const isAdminView = window.location.pathname.includes("admin-view");
 
   useEffect(() => {
     audioRef.current = new Audio(notificationSound);
@@ -70,6 +76,29 @@ export function KitchenDashboard() {
     };
   }, []);
 
+  useEffect(() => {
+    if (isAdminView) {
+      // For admin view, just set admin name and continue
+      const adminName = localStorage.getItem("adminName") || "Admin";
+      setUserName(adminName);
+      return;
+    }
+
+    // For normal kitchen staff access
+    const storedUserData = localStorage.getItem("employeeData");
+    if (storedUserData) {
+      try {
+        const { name } = JSON.parse(storedUserData);
+        setUserName(name || "Kitchen Staff");
+      } catch (e) {
+        console.error("Failed to parse user data:", e);
+        setUserName("Kitchen Staff");
+      }
+    } else {
+      navigate("/employee/login");
+    }
+  }, [navigate, isAdminView]);
+
   const playNotification = () => {
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
@@ -79,17 +108,24 @@ export function KitchenDashboard() {
     }
   };
 
-  // Update your fetchOrders function
   const fetchOrders = async () => {
     try {
       setIsLoading(true);
-      const token = localStorage.getItem("token"); // Get token from storage
+      let token;
 
-      const response = await axios.get("http://localhost:8080/api/orders", {
+      if (isAdminView) {
+        token = localStorage.getItem("token"); // Admin token
+      } else {
+        token = localStorage.getItem("employeeToken"); // Employee token
+      }
+
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      const response = await api.get("/api/orders", {
         params: { status: "IN_PROGRESS" },
-        headers: {
-          Authorization: `Bearer ${token}`, // Add authorization header
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       const processed = response.data
@@ -98,18 +134,20 @@ export function KitchenDashboard() {
         .filter((order) => order.statusOfOrder === "IN_PROGRESS");
       setOrders(processed);
     } catch (error) {
+      console.error("Failed to fetch orders:", error);
+      toast.error("Failed to load orders");
       if (error.response?.status === 401) {
-        toast.error("Session expired. Please login again.");
-        // Redirect to login or handle token refresh
-        window.location.href = "/login";
-      } else {
-        toast.error("Failed to load orders");
+        if (isAdminView) {
+          navigate("/login");
+        } else {
+          navigate("/employee/login");
+        }
       }
     } finally {
       setIsLoading(false);
     }
   };
-  const playedSoundOrders = useRef(new Set());
+
   useEffect(() => {
     fetchOrders();
 
@@ -168,16 +206,39 @@ export function KitchenDashboard() {
       clientRef.current?.deactivate();
       console.log("WebSocket connection cleaned up");
     };
-  }, []);
+  }, [isAdminView]);
 
-  const markOrderReady = (id) => {
-    api
-      .put(`/api/orders/${id}/ready`)
-      .then(() => {
-        toast.success("Order marked READY");
-        setOrders((prev) => prev.filter((order) => order.id !== id));
-      })
-      .catch(() => toast.error("Failed to mark order READY"));
+  const markOrderReady = async (id) => {
+    try {
+      let token;
+
+      if (isAdminView) {
+        token = localStorage.getItem("token");
+      } else {
+        token = localStorage.getItem("employeeToken");
+      }
+
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      await api.put(`/api/orders/${id}/ready`, null, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      toast.success("Order marked READY");
+      setOrders((prev) => prev.filter((order) => order.id !== id));
+    } catch (error) {
+      console.error("Failed to mark order ready:", error);
+      toast.error("Failed to mark order READY");
+      if (error.response?.status === 401) {
+        if (isAdminView) {
+          navigate("/login");
+        } else {
+          navigate("/employee/login");
+        }
+      }
+    }
   };
 
   const toggleOrderExpand = (id) => {
@@ -191,16 +252,46 @@ export function KitchenDashboard() {
     return `${Math.floor(diffMinutes / 60)}h ${diffMinutes % 60}m ago`;
   };
 
+  const handleLogout = async () => {
+    try {
+      if (!isAdminView) {
+        await api.post("/api/employee/logout");
+        localStorage.removeItem("employeeData");
+        localStorage.removeItem("employeeToken");
+        navigate("/employee/login");
+      } else {
+        // For admin view, just redirect to admin dashboard
+        navigate("/admin/dashboard");
+      }
+    } catch (error) {
+      console.error("Logout failed:", error);
+      toast.error("Logout failed. Please try again.");
+    }
+  };
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <header className="bg-gradient-to-r from-blue-700 to-indigo-800 text-white py-8 px-6 shadow-xl">
-        <div className="max-w-6xl mx-auto">
-          <h1 className="text-3xl font-bold">Kitchen Dashboard</h1>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 w-full">
+      <header className="bg-gradient-to-r from-blue-700 to-indigo-800 text-white py-8 px-6 shadow-xl w-full">
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">Kitchen Dashboard</h1>
+            {!isAdminView && (
+              <h1 className="text-3xl font-bold">Hello, {userName}</h1>
+            )}
+          </div>
+          {!isAdminView && (
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-6 py-3 rounded-xl text-lg transition-colors"
+            >
+              <FiLogOut size={20} />
+              Logout
+            </button>
+          )}
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8 -mt-6">
-        <div className="bg-white rounded-xl shadow-xl p-6 border border-gray-200">
+      <main className="w-full px-6 py-8 -mt-6">
+        <div className="bg-white rounded-xl shadow-xl p-6 border border-gray-200 mx-auto max-w-6xl">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
               <FiClock className="text-blue-500" />

@@ -301,12 +301,12 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    const isEmployee = user?.role === "WAITER" || user?.role === "KITCHEN";
-    console.log("Logging out...", isEmployee ? "employee" : "admin");
+    console.log("Initiating logout for user:", user?.role);
 
     try {
-      // Try to call backend logout
-      const endpoint = isEmployee ? "/logout" : "/logout"; // Using same endpoint for now
+      // Call the appropriate logout endpoint
+      const endpoint =
+        user?.role === "ADMIN" ? "/logout" : "/api/employee/logout";
       await api.post(endpoint);
       console.log("Backend logout successful");
     } catch (error) {
@@ -314,29 +314,27 @@ export function AuthProvider({ children }) {
         "Backend logout failed (continuing with frontend logout):",
         error.message
       );
-      // Continue with frontend logout even if backend fails
     }
 
-    // Clear auth based on user type
-    if (user?.role === "ADMIN") {
-      try {
-        new BroadcastChannel(AUTH_CHANNEL).postMessage({ type: "LOGOUT" });
-      } catch (broadcastError) {
-        console.warn("Failed to broadcast logout:", broadcastError);
-      }
-      clearAuth();
-    } else {
-      try {
-        new BroadcastChannel(EMPLOYEE_AUTH_CHANNEL).postMessage({
-          type: "EMPLOYEE_LOGOUT",
-        });
-      } catch (broadcastError) {
-        console.warn("Failed to broadcast employee logout:", broadcastError);
-      }
-      clearEmployeeAuth();
+    // Clear ALL authentication data regardless of user type
+    clearAuth();
+    clearEmployeeAuth();
+
+    // Remove the authorization header
+    delete api.defaults.headers.common["Authorization"];
+
+    // Broadcast logout to all tabs
+    try {
+      new BroadcastChannel(AUTH_CHANNEL).postMessage({ type: "LOGOUT" });
+      new BroadcastChannel(EMPLOYEE_AUTH_CHANNEL).postMessage({
+        type: "EMPLOYEE_LOGOUT",
+      });
+    } catch (broadcastError) {
+      console.warn("Failed to broadcast logout:", broadcastError);
     }
 
-    console.log("Logout completed");
+    console.log("Logout completed - all credentials cleared");
+    navigate("/employee/login"); // Redirect to login page
   };
 
   const contextValue = {

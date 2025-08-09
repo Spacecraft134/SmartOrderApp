@@ -76,6 +76,8 @@ export default function ResturantAppRouter() {
           <Route path="waiter-dashboard" element={<WaiterDashboard />} />
           <Route path="kitchen-dashboard" element={<KitchenDashboard />} />
         </Route>
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
       </Routes>
     </AuthProvider>
   );

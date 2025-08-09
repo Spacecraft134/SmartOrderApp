@@ -12,6 +12,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.smartOrder.restaurant_managment_app.Models.Users;
+import com.smartOrder.restaurant_managment_app.Models.Users.Role;
 import com.smartOrder.restaurant_managment_app.repository.RestaurantRepository;
 import com.smartOrder.restaurant_managment_app.repository.UserRepo;
 @Service
@@ -122,5 +123,24 @@ public class UserService {
     
     public void deleteUser(int userId) {
       userRepo.deleteById(userId);
+  }
+    
+    public Users updateUser(Integer userId, Users userUpdates) {
+      Users existingUser = userRepo.findById(userId)
+          .orElseThrow(() -> new RuntimeException("User not found"));
+   
+      if (userUpdates.getName() != null && !userUpdates.getName().isEmpty()) {
+          existingUser.setName(userUpdates.getName());
+      }
+      
+      if (userUpdates.getRole() != null) {
+          if (userUpdates.getRole() == Role.WAITER || userUpdates.getRole() == Role.KITCHEN) {
+              existingUser.setRole(userUpdates.getRole());
+          } else {
+              throw new RuntimeException("Invalid role assignment");
+          }
+      }
+      
+      return userRepo.save(existingUser);
   }
 } 

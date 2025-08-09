@@ -31,3 +31,13 @@ build/
 
 ### VS Code ###
 .vscode/
+
+
+.env
+.env.local
+.env.production
+target/
+*.jar
+*.war
+*.class
+.DS_Store

@@ -5,6 +5,12 @@ import { useAuth } from "../pages/Context/AuthContext";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
+  <Link
+    to="/forgot-password"
+    className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
+  >
+    Forgot password?
+  </Link>;
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);

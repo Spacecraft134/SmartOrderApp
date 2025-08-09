@@ -80,6 +80,9 @@ public class SecurityConfig {
 
                 // Admin-only endpoints
                 .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
+                
+                .requestMatchers(HttpMethod.PUT, "/api/orders/*/ready").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/orders/in-progress").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN")
 
                 // Fallback: any other request requires authentication
                 .anyRequest().authenticated()

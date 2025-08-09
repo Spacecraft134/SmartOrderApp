@@ -34,7 +34,7 @@ export default function EmployeeLogin() {
             navigate("/employee/kitchen-dashboard");
             break;
           default:
-            navigate("/unauthorized");
+            navigate("/error");
             break;
         }
       } else {

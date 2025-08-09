@@ -83,11 +83,13 @@ export default function UserManagement() {
 
     setIsCreating(true);
     try {
-      const response = await api.post(`/restaurant/${user.restaurantId}`, {
+      // Change this line to use the correct endpoint
+      const response = await api.post("/register-employee", {
         name: newUser.name,
         username: newUser.username,
         password: newUser.password,
         role: newUser.role,
+        // The restaurantId will be automatically set by the backend based on the authenticated admin
       });
 
       toast.success("User created successfully!");
