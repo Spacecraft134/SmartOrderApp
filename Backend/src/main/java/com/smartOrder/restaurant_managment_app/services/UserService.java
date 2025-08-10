@@ -94,7 +94,7 @@ public class UserService {
 
     public Users createUser(Users user) {
       // Verify restaurant exists
-      if (!restaurantRepository.existsById(user.getRestaurantId())) {
+      if (!restaurantRepository.existsById(user.getRestaurantId().intValue())) {
           throw new RuntimeException("Restaurant not found");
       }
       

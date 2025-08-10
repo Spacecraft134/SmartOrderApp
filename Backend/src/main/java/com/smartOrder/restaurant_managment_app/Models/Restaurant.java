@@ -9,7 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 public class Restaurant {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Long id;
     
     @Column(nullable = false)
     private String name;
@@ -21,8 +21,8 @@ public class Restaurant {
     private LocalDateTime createdAt;
     
     // Getters and setters
-    public Integer getId() { return id; }
-    public void setId(Integer id) { this.id = id; }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     public String getCode() { return code; }

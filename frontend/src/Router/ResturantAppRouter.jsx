@@ -30,20 +30,20 @@ export default function ResturantAppRouter() {
         <Route path="/" element={<LaunchPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />
-
         {/* CUSTOMER ROUTES - Fixed paths for correct flow */}
         {/* First-time visitors (from QR codes) go to order page */}
         <Route path="/customerOrder/:tableNumber" element={<CustomerOrder />} />
-
+        <Route
+          path="/thank-you/:restaurantId/:tableNumber"
+          element={<ThankYou />}
+        />
         {/* After ordering, they get redirected to orders list */}
         <Route
           path="/guest-orders/:tableNumber"
           element={<CustomerOrdersList />}
         />
-
         {/* Thank you page after session ends */}
         <Route path="/thank-you/:tableNumber" element={<ThankYou />} />
-
         {/* ADMIN ROUTES */}
         <Route
           path="/tableQRs"
@@ -53,7 +53,6 @@ export default function ResturantAppRouter() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/admin"
           element={
@@ -69,19 +68,16 @@ export default function ResturantAppRouter() {
           <Route path="users" element={<UserManagement />} />
           <Route path="setting" element={<Setting />} />
         </Route>
-
         {/* PASSWORD RECOVERY ROUTES */}
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
-
         {/* EMPLOYEE ROUTES */}
         <Route path="/employee/login" element={<EmployeeLogin />} />
         <Route
           path="/employee/forgot-password"
           element={<ForgotPasswordPage />}
         />
-
         <Route
           path="/employee/*"
           element={

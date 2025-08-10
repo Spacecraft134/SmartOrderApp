@@ -40,7 +40,7 @@ import { Close } from "@mui/icons-material";
 import { CustomerOrder } from "../CustomerViews/CustomerOrder";
 import { WaiterDashboard } from "../WaiterDashboard";
 import { KitchenDashboard } from "../KitchenDashboard";
-import EditableThankYou from "../AdminViews/EditableThankYou";
+import { EditableThankYou } from "../AdminViews/EditableThankYou";
 import api from "../Utils/api";
 import { useAuth } from "../Context/AuthContext";
 
