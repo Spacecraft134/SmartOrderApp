@@ -15,7 +15,6 @@ import SignUpPage from "../pages/SignUpPage";
 import { ThankYou } from "../pages/CustomerViews/ThankyouPage";
 import ProtectedRoute from "../Router/ProtectedRoute ";
 import { Route, Routes } from "react-router-dom";
-import ErrorPage from "../pages/Utils/ErrorPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import ResetPasswordPage from "../pages/ResetPasswordPage";
 import UserManagement from "../pages/AdminViews/UserManagement";
@@ -61,10 +60,14 @@ export default function ResturantAppRouter() {
           <Route path="users" element={<UserManagement />} />
           <Route path="setting" element={<Setting />} />
         </Route>
-        <Route path="/error" element={<ErrorPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
         <Route path="/employee/login" element={<EmployeeLogin />} />
+        <Route
+          path="/employee/forgot-password"
+          element={<ForgotPasswordPage />}
+        />
+
         <Route
           path="/employee/*"
           element={

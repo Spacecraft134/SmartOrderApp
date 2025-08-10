@@ -5,12 +5,6 @@ import { useAuth } from "../pages/Context/AuthContext";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
-  <Link
-    to="/forgot-password"
-    className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
-  >
-    Forgot password?
-  </Link>;
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -42,6 +36,7 @@ const LoginPage = () => {
       setIsLoading(false);
     }
   };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0a0e27] to-[#0a1129] text-white flex items-center justify-center p-4">
       <motion.div
@@ -158,13 +153,30 @@ const LoginPage = () => {
               )}
             </motion.button>
 
-            <div className="text-center text-gray-400 text-sm mt-6">
-              Don't have an account?{" "}
+            <div className="flex flex-col gap-4">
+              <div className="text-center text-gray-400 text-sm">
+                Don't have an account?{" "}
+                <Link
+                  to="/signup"
+                  className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
+                >
+                  Create account
+                </Link>
+              </div>
+
+              <div className="relative flex items-center">
+                <div className="flex-grow border-t border-gray-700"></div>
+                <span className="flex-shrink mx-4 text-gray-500 text-sm">
+                  OR
+                </span>
+                <div className="flex-grow border-t border-gray-700"></div>
+              </div>
+
               <Link
-                to="/signup"
-                className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
+                to="/employee/login"
+                className="w-full py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-medium text-center transition-all shadow-lg"
               >
-                Create account
+                Employee Login
               </Link>
             </div>
           </form>

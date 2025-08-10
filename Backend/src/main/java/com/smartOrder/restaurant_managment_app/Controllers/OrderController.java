@@ -13,6 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.handler.annotation.DestinationVariable;
+import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import com.smartOrder.restaurant_managment_app.Controllers.CustomExceptions.NoOrderFoundException;
@@ -126,7 +128,6 @@ public class OrderController {
         return ResponseEntity.ok(saved);
     }
 
-
     // Get latest orders by table number
     @GetMapping("/by-table/{tableNumber}")
     public ResponseEntity<List<Order>> getLatestOrderByTable(@PathVariable String tableNumber) {
@@ -137,9 +138,65 @@ public class OrderController {
         return ResponseEntity.ok(orders);
     }
 
+    // KITCHEN DASHBOARD ENDPOINTS - Fixed for Admin Access
     @GetMapping("/pending")
     public List<Order> getPendingOrders() {
         return orderRepo.findByStatusOfOrder("WAITING_FOR_CONFIRMATION");
+    }
+
+    @GetMapping("/in-progress")
+    public List<Order> getInProgressOrders() {
+        return orderRepo.findByStatusOfOrder("IN_PROGRESS");
+    }
+
+    // NEW: Get all orders that need kitchen attention (for Kitchen Dashboard)
+    @GetMapping("/kitchen-queue")
+    public ResponseEntity<Map<String, Object>> getKitchenQueue() {
+        try {
+            List<Order> pending = orderRepo.findByStatusOfOrder("WAITING_FOR_CONFIRMATION");
+            List<Order> inProgress = orderRepo.findByStatusOfOrder("IN_PROGRESS");
+            
+            long totalQueue = pending.size() + inProgress.size();
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("count", totalQueue);
+            response.put("pending", pending);
+            response.put("inProgress", inProgress);
+            response.put("pendingCount", pending.size());
+            response.put("inProgressCount", inProgress.size());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Failed to fetch kitchen queue: " + e.getMessage()));
+        }
+    }
+
+    // NEW: Get ready orders (completed by kitchen, waiting for delivery)
+    @GetMapping("/ready")
+    public List<Order> getReadyOrders() {
+        return orderRepo.findByStatusOfOrder("READY");
+    }
+
+    // NEW: Get all active orders (for kitchen dashboard overview)
+    @GetMapping("/active")
+    public ResponseEntity<Map<String, Object>> getActiveOrders() {
+        try {
+            List<Order> waiting = orderRepo.findByStatusOfOrder("WAITING_FOR_CONFIRMATION");
+            List<Order> inProgress = orderRepo.findByStatusOfOrder("IN_PROGRESS");
+            List<Order> ready = orderRepo.findByStatusOfOrder("READY");
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("waiting", waiting);
+            response.put("inProgress", inProgress);
+            response.put("ready", ready);
+            response.put("total", waiting.size() + inProgress.size() + ready.size());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Failed to fetch active orders: " + e.getMessage()));
+        }
     }
 
     @PutMapping("/{id}/progress")
@@ -244,14 +301,19 @@ public class OrderController {
         return saleByCategoryService.calculateSalesByCategory(date);
     }
     
- // Add this new endpoint to your existing OrderController
-    @GetMapping("/kitchen-queue")
-    public ResponseEntity<Map<String, Long>> getKitchenQueueSize() {
-            // Count orders in progress or waiting for confirmation
-            long inProgressCount = orderRepo.countByStatusOfOrder("IN_PROGRESS");
-            long waitingCount = orderRepo.countByStatusOfOrder("WAITING_FOR_CONFIRMATION");
-            long totalQueue = inProgressCount + waitingCount;
-            
-            return ResponseEntity.ok(Map.of("count", totalQueue));
-    }
+
+@MessageMapping("/orders/{tableNumber}/subscribe")
+public void subscribeToOrderUpdates(@DestinationVariable String tableNumber) {
+    // Subscription handled automatically by Spring
+}
+
+@MessageMapping("/orders/{tableNumber}/unsubscribe")
+public void unsubscribeFromOrderUpdates(@DestinationVariable String tableNumber) {
+    // Unsubscription handled automatically by Spring
+}
+
+@GetMapping("/{tableNumber}/ws-status")
+public ResponseEntity<?> checkWebSocketStatus(@PathVariable String tableNumber) {
+    return ResponseEntity.ok(Map.of("status", "active"));
+}
 }

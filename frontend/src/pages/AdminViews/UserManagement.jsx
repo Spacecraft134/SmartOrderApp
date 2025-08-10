@@ -89,7 +89,6 @@ export default function UserManagement() {
         username: newUser.username,
         password: newUser.password,
         role: newUser.role,
-        // The restaurantId will be automatically set by the backend based on the authenticated admin
       });
 
       toast.success("User created successfully!");
@@ -212,6 +211,57 @@ export default function UserManagement() {
         );
     }
   };
+
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordMismatch, setPasswordMismatch] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState({
+    score: 0,
+    message: "",
+  });
+
+  // Password strength checker
+  const checkPasswordStrength = (password) => {
+    let score = 0;
+    let message = "";
+
+    // Length check
+    if (password.length >= 8) score++;
+    if (password.length >= 12) score++;
+
+    // Complexity checks
+    if (/[A-Z]/.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+
+    // Determine message
+    if (score === 0) message = "Very weak";
+    else if (score <= 2) message = "Weak";
+    else if (score === 3) message = "Good";
+    else message = "Strong";
+
+    return { score, message };
+  };
+
+  useEffect(() => {
+    checkPasswordMatch();
+  }, [newUser.password, confirmPassword]);
+
+  const checkPasswordMatch = () => {
+    // Only check if both fields have values
+    if (newUser.password && confirmPassword) {
+      const doMatch = newUser.password === confirmPassword;
+      setPasswordMismatch(!doMatch);
+    } else {
+      setPasswordMismatch(false);
+    }
+  };
+
+  // Update password strength when password changes
+  useEffect(() => {
+    if (newUser.password) {
+      setPasswordStrength(checkPasswordStrength(newUser.password));
+    }
+  }, [newUser.password]);
 
   return (
     <div className="p-6">
@@ -356,7 +406,7 @@ export default function UserManagement() {
           <div className="w-full max-w-md bg-white rounded-lg shadow-xl">
             <div className="bg-blue-600 p-4 rounded-t-lg flex justify-between items-center">
               <h3 className="text-lg font-semibold text-white">
-                {editingUser ? "Edit User" : "Create New User"}
+                {editingUser ? "Edit Employee" : "Create New Employee"}
               </h3>
               <button
                 onClick={() => {
@@ -375,7 +425,7 @@ export default function UserManagement() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    Full Name
+                    Full Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -383,13 +433,15 @@ export default function UserManagement() {
                     onChange={(e) =>
                       setNewUser({ ...newUser, name: e.target.value })
                     }
-                    className="w-full px-3 py-2 border rounded-md"
+                    className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
+                    placeholder="John Doe"
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    Username (Email)
+                    Email <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="email"
@@ -397,73 +449,135 @@ export default function UserManagement() {
                     onChange={(e) =>
                       setNewUser({ ...newUser, username: e.target.value })
                     }
-                    className="w-full px-3 py-2 border rounded-md"
+                    className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
                     disabled={!!editingUser}
+                    placeholder="employee@example.com"
                   />
                 </div>
+
                 {!editingUser && (
                   <>
                     <div>
                       <label className="block text-sm font-medium mb-1">
-                        Password
+                        Password <span className="text-red-500">*</span>
                       </label>
-                      <input
-                        type="password"
-                        value={newUser.password}
-                        onChange={(e) => {
-                          const error = validatePassword(e.target.value);
-                          setPasswordError(error);
-                          setNewUser({ ...newUser, password: e.target.value });
-                        }}
-                        className="w-full px-3 py-2 border rounded-md"
-                        required={!editingUser}
-                        minLength="8"
-                      />
+                      <div className="relative">
+                        <input
+                          type="password"
+                          value={newUser.password}
+                          onChange={(e) => {
+                            const error = validatePassword(e.target.value);
+                            setPasswordError(error);
+                            setNewUser({
+                              ...newUser,
+                              password: e.target.value,
+                            });
+                          }}
+                          className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          required
+                          minLength="8"
+                          placeholder="At least 8 characters"
+                        />
+                      </div>
+                      {newUser.password && (
+                        <div className="mt-1">
+                          <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full ${
+                                passwordStrength.score < 2
+                                  ? "bg-red-500"
+                                  : passwordStrength.score < 4
+                                  ? "bg-yellow-500"
+                                  : "bg-green-500"
+                              }`}
+                              style={{
+                                width: `${(passwordStrength.score / 4) * 100}%`,
+                              }}
+                            ></div>
+                          </div>
+                          <p className="text-xs mt-1 text-gray-600">
+                            {passwordStrength.message}
+                          </p>
+                        </div>
+                      )}
                       {passwordError && (
                         <p className="text-red-500 text-xs mt-1">
                           {passwordError}
                         </p>
                       )}
                     </div>
-                    {newUser.role === "ADMIN" && !editingUser && (
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Restaurant Code
-                        </label>
-                        <input
-                          type="text"
-                          value={newUser.restaurantCode}
-                          onChange={(e) =>
-                            setNewUser({
-                              ...newUser,
-                              restaurantCode: e.target.value,
-                            })
-                          }
-                          className="w-full px-3 py-2 border rounded-md"
-                          required={newUser.role === "ADMIN"}
-                          pattern="[A-Za-z0-9-]{4,20}"
-                          title="4-20 alphanumeric characters"
-                        />
-                      </div>
-                    )}
+
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        Confirm Password <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => {
+                          setConfirmPassword(e.target.value);
+                        }}
+                        className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          passwordMismatch ? "border-red-500" : ""
+                        }`}
+                        required
+                        placeholder="Re-enter your password"
+                      />
+                      {passwordMismatch && (
+                        <p className="text-red-500 text-xs mt-1">
+                          Passwords do not match
+                        </p>
+                      )}
+                    </div>
                   </>
                 )}
+
                 <div>
-                  <label className="block text-sm font-medium mb-1">Role</label>
+                  <label className="block text-sm font-medium mb-1">
+                    Role <span className="text-red-500">*</span>
+                  </label>
                   <select
                     value={newUser.role}
                     onChange={(e) =>
                       setNewUser({ ...newUser, role: e.target.value })
                     }
-                    className="w-full px-3 py-2 border rounded-md"
+                    className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     disabled={editingUser?.role === "ADMIN"}
                   >
                     <option value="WAITER">Waiter</option>
                     <option value="KITCHEN">Kitchen Staff</option>
+                    <option value="MANAGER">Manager</option>
                   </select>
                 </div>
+
+                {newUser.role === "MANAGER" && !editingUser && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Restaurant Code <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newUser.restaurantCode}
+                      onChange={(e) =>
+                        setNewUser({
+                          ...newUser,
+                          restaurantCode: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required={newUser.role === "MANAGER"}
+                      pattern="[A-Za-z0-9-]{4,20}"
+                      title="4-20 alphanumeric characters"
+                      placeholder="Enter restaurant identifier"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      This code will link the manager to a specific restaurant
+                    </p>
+                  </div>
+                )}
               </div>
+
               <div className="mt-6 flex justify-end space-x-3">
                 <button
                   type="button"
@@ -471,122 +585,32 @@ export default function UserManagement() {
                     setShowCreateModal(false);
                     resetForm();
                   }}
-                  className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300"
+                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center"
+                  className={`px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center ${
+                    isCreating || passwordMismatch
+                      ? "opacity-70 cursor-not-allowed"
+                      : ""
+                  }`}
                   disabled={
                     isCreating ||
-                    (newUser.role === "ADMIN" && !newUser.restaurantCode)
+                    passwordMismatch ||
+                    (newUser.role === "MANAGER" && !newUser.restaurantCode)
                   }
                 >
                   {isCreating ? (
                     <>
                       <FiRefreshCw className="animate-spin mr-2" />
-                      {editingUser ? "Updating..." : "Creating..."}
+                      {editingUser ? "Saving..." : "Creating..."}
                     </>
                   ) : editingUser ? (
-                    "Update User"
+                    "Save Changes"
                   ) : (
-                    "Create User"
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Invite User Modal */}
-      {showInviteModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-md bg-white rounded-lg shadow-xl">
-            <div className="bg-green-600 p-4 rounded-t-lg flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-white">Invite User</h3>
-              <button
-                onClick={() => {
-                  setShowInviteModal(false);
-                  resetForm();
-                }}
-                className="text-white hover:text-green-200"
-              >
-                <FiX />
-              </button>
-            </div>
-            <form onSubmit={handleInviteUser} className="p-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    value={newUser.name}
-                    onChange={(e) =>
-                      setNewUser({ ...newUser, name: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border rounded-md"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={newUser.username}
-                    onChange={(e) =>
-                      setNewUser({ ...newUser, username: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border rounded-md"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Role</label>
-                  <select
-                    value={newUser.role}
-                    onChange={(e) =>
-                      setNewUser({ ...newUser, role: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border rounded-md"
-                  >
-                    <option value="WAITER">Waiter</option>
-                    <option value="KITCHEN">Kitchen Staff</option>
-                  </select>
-                </div>
-                <p className="text-sm text-gray-500">
-                  An invitation email will be sent with instructions to create
-                  their own credentials.
-                </p>
-              </div>
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowInviteModal(false);
-                    resetForm();
-                  }}
-                  className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center justify-center"
-                  disabled={isInviting}
-                >
-                  {isInviting ? (
-                    <>
-                      <FiRefreshCw className="animate-spin mr-2" />
-                      Sending...
-                    </>
-                  ) : (
-                    "Send Invitation"
+                    "Create Employee"
                   )}
                 </button>
               </div>

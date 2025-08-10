@@ -13,6 +13,7 @@ import {
   FiChevronUp,
   FiRotateCw,
   FiLogOut,
+  FiPlay,
 } from "react-icons/fi";
 import api from "./Utils/api";
 import { useNavigate } from "react-router-dom";
@@ -58,11 +59,17 @@ export function KitchenDashboard() {
   const clientRef = useRef(null);
   const audioRef = useRef(null);
   const navigate = useNavigate();
-  const [userName, setUserName] = useState("Admin");
+  const [userName, setUserName] = useState("Kitchen Staff");
   const playedSoundOrders = useRef(new Set());
 
-  // Check if this is being accessed from admin view
-  const isAdminView = window.location.pathname.includes("admin-view");
+  // Better admin view detection
+  const isAdminView = React.useMemo(() => {
+    return (
+      window.location.pathname.includes("admin") ||
+      window.parent !== window || // In iframe/modal
+      document.referrer.includes("admin")
+    );
+  }, []);
 
   useEffect(() => {
     audioRef.current = new Audio(notificationSound);
@@ -78,24 +85,32 @@ export function KitchenDashboard() {
 
   useEffect(() => {
     if (isAdminView) {
-      // For admin view, just set admin name and continue
-      const adminName = localStorage.getItem("adminName") || "Admin";
-      setUserName(adminName);
-      return;
-    }
-
-    // For normal kitchen staff access
-    const storedUserData = localStorage.getItem("employeeData");
-    if (storedUserData) {
-      try {
-        const { name } = JSON.parse(storedUserData);
-        setUserName(name || "Kitchen Staff");
-      } catch (e) {
-        console.error("Failed to parse user data:", e);
-        setUserName("Kitchen Staff");
+      // For admin view, get admin info
+      const userData = localStorage.getItem("userData");
+      if (userData) {
+        try {
+          const { name } = JSON.parse(userData);
+          setUserName(name || "Admin");
+        } catch (e) {
+          setUserName("Admin");
+        }
+      } else {
+        setUserName("Admin");
       }
     } else {
-      navigate("/employee/login");
+      // For normal kitchen staff access
+      const storedUserData = localStorage.getItem("employeeData");
+      if (storedUserData) {
+        try {
+          const { name } = JSON.parse(storedUserData);
+          setUserName(name || "Kitchen Staff");
+        } catch (e) {
+          console.error("Failed to parse user data:", e);
+          setUserName("Kitchen Staff");
+        }
+      } else {
+        navigate("/employee/login");
+      }
     }
   }, [navigate, isAdminView]);
 
@@ -108,37 +123,57 @@ export function KitchenDashboard() {
     }
   };
 
+  const getAuthToken = () => {
+    if (isAdminView) {
+      return localStorage.getItem("token");
+    } else {
+      return localStorage.getItem("employeeToken");
+    }
+  };
+
   const fetchOrders = async () => {
     try {
       setIsLoading(true);
-      let token;
-
-      if (isAdminView) {
-        token = localStorage.getItem("token"); // Admin token
-      } else {
-        token = localStorage.getItem("employeeToken"); // Employee token
-      }
+      const token = getAuthToken();
 
       if (!token) {
         throw new Error("No authentication token found");
       }
 
-      const response = await api.get("/api/orders", {
-        params: { status: "IN_PROGRESS" },
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // Use the proper kitchen endpoints instead of generic orders
+      const [pendingResponse, inProgressResponse] = await Promise.all([
+        api
+          .get("/api/orders/pending", {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          .catch((err) => ({ data: [] })), // Handle errors gracefully
+        api
+          .get("/api/orders/in-progress", {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          .catch((err) => ({ data: [] })),
+      ]);
 
-      const processed = response.data
+      const pendingOrders = (pendingResponse.data || [])
         .map(processOrderData)
-        .filter(Boolean)
-        .filter((order) => order.statusOfOrder === "IN_PROGRESS");
-      setOrders(processed);
+        .filter(Boolean);
+      const inProgressOrders = (inProgressResponse.data || [])
+        .map(processOrderData)
+        .filter(Boolean);
+
+      // Combine and sort by time (newest first)
+      const allOrders = [...pendingOrders, ...inProgressOrders].sort(
+        (a, b) => new Date(b.time) - new Date(a.time)
+      );
+
+      setOrders(allOrders);
     } catch (error) {
       console.error("Failed to fetch orders:", error);
       toast.error("Failed to load orders");
-      if (error.response?.status === 401) {
+
+      if (error.response?.status === 401 || error.response?.status === 403) {
         if (isAdminView) {
-          navigate("/login");
+          toast.error("Admin authentication required");
         } else {
           navigate("/employee/login");
         }
@@ -156,6 +191,7 @@ export function KitchenDashboard() {
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
       onConnect: () => {
+        console.log("Kitchen Dashboard WebSocket connected");
         stompClient.subscribe("/topic/orders", (message) => {
           if (!message?.body) return;
 
@@ -164,9 +200,21 @@ export function KitchenDashboard() {
             const order = processOrderData(orderEvent.order);
             const eventType = orderEvent.eventType;
 
+            if (!order) return;
+
             setOrders((prev) => {
+              // Remove order if it's completed, ready, or deleted
               if (
                 eventType === "DELETE" ||
+                order.statusOfOrder === "READY" ||
+                order.statusOfOrder === "COMPLETED"
+              ) {
+                return prev.filter((o) => o.id !== order.id);
+              }
+
+              // Only include orders that are pending or in progress
+              if (
+                order.statusOfOrder !== "WAITING_FOR_CONFIRMATION" &&
                 order.statusOfOrder !== "IN_PROGRESS"
               ) {
                 return prev.filter((o) => o.id !== order.id);
@@ -176,13 +224,19 @@ export function KitchenDashboard() {
               if (existingIndex >= 0) {
                 const updated = [...prev];
                 updated[existingIndex] = order;
-                return updated;
+                return updated.sort(
+                  (a, b) => new Date(b.time) - new Date(a.time)
+                );
               } else {
+                // New order - play notification
                 if (!playedSoundOrders.current.has(order.id)) {
                   playNotification();
                   playedSoundOrders.current.add(order.id);
+                  toast.success(`New order from Table ${order.tableNumber}!`);
                 }
-                return [...prev, order];
+                return [...prev, order].sort(
+                  (a, b) => new Date(b.time) - new Date(a.time)
+                );
               }
             });
           } catch (error) {
@@ -191,11 +245,11 @@ export function KitchenDashboard() {
         });
       },
       onStompError: (frame) => {
-        console.error("WebSocket error:", frame);
-        toast.error("WebSocket connection error. Trying to reconnect...");
+        console.error("Kitchen WebSocket error:", frame);
+        toast.error("Connection error. Trying to reconnect...");
       },
       onWebSocketClose: () => {
-        console.log("WebSocket connection closed");
+        console.log("Kitchen WebSocket connection closed");
       },
     });
 
@@ -204,20 +258,45 @@ export function KitchenDashboard() {
 
     return () => {
       clientRef.current?.deactivate();
-      console.log("WebSocket connection cleaned up");
     };
   }, [isAdminView]);
 
-  const markOrderReady = async (id) => {
+  const startOrderProgress = async (id) => {
     try {
-      let token;
-
-      if (isAdminView) {
-        token = localStorage.getItem("token");
-      } else {
-        token = localStorage.getItem("employeeToken");
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error("No authentication token found");
       }
 
+      await api.put(`/api/orders/${id}/progress`, null, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      toast.success("Order started!");
+
+      // Update local state
+      setOrders((prev) =>
+        prev.map((order) =>
+          order.id === id ? { ...order, statusOfOrder: "IN_PROGRESS" } : order
+        )
+      );
+    } catch (error) {
+      console.error("Failed to start order:", error);
+      toast.error("Failed to start order");
+
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        if (isAdminView) {
+          toast.error("Admin authentication required");
+        } else {
+          navigate("/employee/login");
+        }
+      }
+    }
+  };
+
+  const markOrderReady = async (id) => {
+    try {
+      const token = getAuthToken();
       if (!token) {
         throw new Error("No authentication token found");
       }
@@ -226,14 +305,17 @@ export function KitchenDashboard() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      toast.success("Order marked READY");
+      toast.success("Order marked READY for pickup!");
+
+      // Remove from kitchen dashboard
       setOrders((prev) => prev.filter((order) => order.id !== id));
     } catch (error) {
       console.error("Failed to mark order ready:", error);
-      toast.error("Failed to mark order READY");
-      if (error.response?.status === 401) {
+      toast.error("Failed to mark order ready");
+
+      if (error.response?.status === 401 || error.response?.status === 403) {
         if (isAdminView) {
-          navigate("/login");
+          toast.error("Admin authentication required");
         } else {
           navigate("/employee/login");
         }
@@ -252,6 +334,18 @@ export function KitchenDashboard() {
     return `${Math.floor(diffMinutes / 60)}h ${diffMinutes % 60}m ago`;
   };
 
+  const getOrderPriority = (order) => {
+    const ageMinutes = Math.floor((Date.now() - new Date(order.time)) / 60000);
+    const hasUrgentInstructions = order.items?.some((item) =>
+      item.instructions?.toLowerCase().includes("urgent")
+    );
+
+    if (hasUrgentInstructions) return "urgent";
+    if (ageMinutes > 30) return "overdue";
+    if (ageMinutes > 15) return "warning";
+    return "normal";
+  };
+
   const handleLogout = async () => {
     try {
       if (!isAdminView) {
@@ -260,33 +354,47 @@ export function KitchenDashboard() {
         localStorage.removeItem("employeeToken");
         navigate("/employee/login");
       } else {
-        // For admin view, just redirect to admin dashboard
-        navigate("/admin/dashboard");
+        // For admin view, just close modal or redirect
+        if (window.parent !== window) {
+          window.parent.postMessage({ action: "closeModal" }, "*");
+        } else {
+          navigate("/admin/dashboard");
+        }
       }
     } catch (error) {
       console.error("Logout failed:", error);
       toast.error("Logout failed. Please try again.");
     }
   };
+
+  const getPendingOrders = () =>
+    orders.filter(
+      (order) => order.statusOfOrder === "WAITING_FOR_CONFIRMATION"
+    );
+  const getInProgressOrders = () =>
+    orders.filter((order) => order.statusOfOrder === "IN_PROGRESS");
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 w-full">
-      <header className="bg-gradient-to-r from-blue-700 to-indigo-800 text-white py-8 px-6 shadow-xl w-full">
+      <header className="bg-gradient-to-r from-blue-600 to-blue-600 text-white py-8 px-6 shadow-xl w-full">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">Kitchen Dashboard</h1>
+            <h2 className="text-lg opacity-90">
+              {isAdminView ? `Admin View - ${userName}` : `Hello, ${userName}`}
+            </h2>
+          </div>
+          <div className="flex items-center gap-4">
             {!isAdminView && (
-              <h1 className="text-3xl font-bold">Hello, {userName}</h1>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-6 py-3 rounded-xl text-lg transition-colors"
+              >
+                <FiLogOut size={20} />
+                Logout
+              </button>
             )}
           </div>
-          {!isAdminView && (
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-6 py-3 rounded-xl text-lg transition-colors"
-            >
-              <FiLogOut size={20} />
-              Logout
-            </button>
-          )}
         </div>
       </header>
 
@@ -295,14 +403,14 @@ export function KitchenDashboard() {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
               <FiClock className="text-blue-500" />
-              {isLoading ? "Loading..." : `Active Orders (${orders.length})`}
+              {isLoading ? "Loading..." : `Kitchen Queue (${orders.length})`}
             </h2>
             <button
               onClick={() => {
                 menuItemCache.clear();
                 fetchOrders();
               }}
-              className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
+              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors"
               disabled={isLoading}
             >
               <FiRotateCw className={isLoading ? "animate-spin" : ""} />
@@ -312,18 +420,38 @@ export function KitchenDashboard() {
 
           {isLoading ? (
             <div className="bg-gray-50 p-8 rounded-lg text-center">
-              <p className="text-gray-500">Loading orders...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <p className="text-gray-500">Loading kitchen orders...</p>
             </div>
           ) : orders.length === 0 ? (
             <div className="bg-gray-50 p-8 rounded-lg text-center">
-              <p className="text-gray-500">No active orders</p>
+              <p className="text-gray-500 text-lg">
+                🎉 All caught up! No orders in queue.
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
               {orders.map((order) => {
-                const isUrgent = order.items?.some((item) =>
-                  item.instructions?.toLowerCase().includes("urgent")
-                );
+                const priority = getOrderPriority(order);
+                const isExpanded = expandedOrders[order.id];
+
+                let borderColor = "border-blue-500";
+                let bgColor = "bg-white";
+                let badgeColor = "bg-blue-100 text-blue-800";
+
+                if (priority === "urgent") {
+                  borderColor = "border-red-500";
+                  bgColor = "bg-red-50";
+                  badgeColor = "bg-red-100 text-red-800";
+                } else if (priority === "overdue") {
+                  borderColor = "border-red-400";
+                  bgColor = "bg-red-25";
+                  badgeColor = "bg-red-100 text-red-700";
+                } else if (priority === "warning") {
+                  borderColor = "border-yellow-500";
+                  bgColor = "bg-yellow-25";
+                  badgeColor = "bg-yellow-100 text-yellow-800";
+                }
 
                 return (
                   <motion.div
@@ -331,61 +459,84 @@ export function KitchenDashboard() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
-                    className={`rounded-xl shadow-md overflow-hidden ${
-                      isUrgent
-                        ? "border-l-4 border-red-500 bg-red-50"
-                        : "border-l-4 border-blue-500"
-                    }`}
+                    className={`rounded-xl shadow-md overflow-hidden border-l-4 ${borderColor} ${bgColor}`}
                   >
                     <div className="p-5">
-                      <div className="flex justify-between items-start">
+                      <div className="flex justify-between items-start mb-3">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="text-lg font-bold">
                               Table #{order.tableNumber}
                             </h3>
-                            {isUrgent && (
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${badgeColor}`}
+                            >
+                              {order.statusOfOrder ===
+                              "WAITING_FOR_CONFIRMATION"
+                                ? "NEW"
+                                : "COOKING"}
+                            </span>
+                            {priority === "urgent" && (
                               <span className="flex items-center gap-1 text-xs px-2 py-1 bg-red-100 text-red-800 rounded-full">
                                 <FiAlertTriangle size={12} /> URGENT
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
                             <span>{calculateOrderAge(order.time)}</span>
                             <span>•</span>
                             <span>{order.items?.length || 0} items</span>
+                            <span>•</span>
+                            <span className="font-medium">
+                              $
+                              {order.items
+                                ?.reduce(
+                                  (sum, item) =>
+                                    sum +
+                                    (item.menuItem?.price || 0) * item.quantity,
+                                  0
+                                )
+                                .toFixed(2)}
+                            </span>
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <button
-                            onClick={() => markOrderReady(order.id)}
-                            className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
-                          >
-                            <FiCheck size={14} /> Ready
-                          </button>
+                          {order.statusOfOrder ===
+                            "WAITING_FOR_CONFIRMATION" && (
+                            <button
+                              onClick={() => startOrderProgress(order.id)}
+                              className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                            >
+                              <FiPlay size={14} /> Start
+                            </button>
+                          )}
+                          {order.statusOfOrder === "IN_PROGRESS" && (
+                            <button
+                              onClick={() => markOrderReady(order.id)}
+                              className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                            >
+                              <FiCheck size={14} /> Ready
+                            </button>
+                          )}
                           <button
                             onClick={() => toggleOrderExpand(order.id)}
-                            className="text-gray-400 hover:text-gray-600 p-1"
+                            className="text-gray-400 hover:text-gray-600 p-1 transition-colors"
                           >
-                            {expandedOrders[order.id] ? (
-                              <FiChevronUp />
-                            ) : (
-                              <FiChevronDown />
-                            )}
+                            {isExpanded ? <FiChevronUp /> : <FiChevronDown />}
                           </button>
                         </div>
                       </div>
 
                       <AnimatePresence>
-                        {expandedOrders[order.id] && (
+                        {isExpanded && (
                           <motion.div
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: "auto", opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
                             transition={{ duration: 0.2 }}
-                            className="mt-4 overflow-hidden"
+                            className="overflow-hidden"
                           >
-                            <div className="space-y-3">
+                            <div className="space-y-3 pt-3 border-t border-gray-200">
                               {order.items?.map((item, index) => (
                                 <div
                                   key={`${order.id}-${item.id || index}`}
@@ -393,20 +544,25 @@ export function KitchenDashboard() {
                                 >
                                   <div className="flex justify-between">
                                     <div>
-                                      <p className="font-medium">
-                                        {item.menuItem?.name || "Unknown"} ×{" "}
-                                        {item.quantity}
+                                      <p className="font-medium text-gray-900">
+                                        {item.menuItem?.name || "Unknown Item"}{" "}
+                                        × {item.quantity}
                                       </p>
+                                      {item.menuItem?.category && (
+                                        <p className="text-xs text-gray-500 mt-1">
+                                          Category: {item.menuItem.category}
+                                        </p>
+                                      )}
                                       {item.instructions && (
-                                        <p className="text-sm text-gray-600 mt-1">
-                                          <span className="font-medium">
-                                            Notes:
+                                        <p className="text-sm text-gray-700 mt-1 bg-yellow-50 p-2 rounded">
+                                          <span className="font-medium text-yellow-800">
+                                            Special Instructions:
                                           </span>{" "}
                                           {item.instructions}
                                         </p>
                                       )}
                                     </div>
-                                    <span className="text-sm font-medium">
+                                    <span className="text-sm font-medium text-gray-600">
                                       $
                                       {(
                                         (item.menuItem?.price || 0) *
@@ -431,7 +587,7 @@ export function KitchenDashboard() {
 
       <ToastContainer
         position="top-center"
-        autoClose={3000}
+        autoClose={4000}
         hideProgressBar={false}
         newestOnTop={true}
         closeOnClick
@@ -440,7 +596,7 @@ export function KitchenDashboard() {
         draggable
         pauseOnHover
         toastClassName="shadow-lg"
-        progressClassName="bg-gradient-to-r from-blue-500 to-indigo-500"
+        progressClassName="bg-gradient-to-r from-blue-500 to-blue-500"
       />
     </div>
   );

@@ -51,11 +51,20 @@ public class SecurityConfig {
                     "/api/tables/*/session-status",
                     "/api/orders/by-table/*",
                     "/customerOrder/**",
-                    "/thank-you/**"
+                    "/thank-you/**",
+                   "/topic/**",
+                    "/app/**",
+                    "/user/**"
                 ).permitAll()
 
+                // KITCHEN DASHBOARD SPECIFIC ENDPOINTS - Allow admin access
+                .requestMatchers(HttpMethod.GET, "/api/orders/kitchen-queue").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/orders/active").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/orders/ready").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN", "ROLE_WAITER")
+                .requestMatchers(HttpMethod.GET, "/api/orders/in-progress").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN")
+
                 // SPECIFIC ORDER ENDPOINTS FIRST (most specific patterns first!)
-                .requestMatchers(HttpMethod.GET, "/api/orders/pending").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/orders/pending").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN", "ROLE_KITCHEN")
                 .requestMatchers(HttpMethod.PUT, "/api/orders/*/progress").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/orders/*/ready").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/orders").permitAll() // Allow customers to place orders
@@ -80,9 +89,6 @@ public class SecurityConfig {
 
                 // Admin-only endpoints
                 .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
-                
-                .requestMatchers(HttpMethod.PUT, "/api/orders/*/ready").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN")
-                .requestMatchers(HttpMethod.GET, "/api/orders/in-progress").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN")
 
                 // Fallback: any other request requires authentication
                 .anyRequest().authenticated()

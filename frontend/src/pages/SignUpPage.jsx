@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -9,20 +9,104 @@ const SignUpPage = () => {
     name: "",
     email: "",
     password: "",
+    confirmPassword: "",
     restaurantName: "",
     restaurantCode: "",
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState({
+    score: 0,
+    message: "",
+    color: "gray",
+  });
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+
+    // Calculate password strength when password changes
+    if (name === "password") {
+      calculatePasswordStrength(value);
+    }
+  };
+
+  // Password strength calculator
+  const calculatePasswordStrength = (password) => {
+    let score = 0;
+
+    // Length check
+    if (password.length >= 8) score++;
+    if (password.length >= 12) score++;
+
+    // Complexity checks
+    if (/[A-Z]/.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+
+    let message = "";
+    let color = "gray";
+
+    switch (score) {
+      case 0:
+      case 1:
+        message = "Very Weak";
+        color = "red";
+        break;
+      case 2:
+        message = "Weak";
+        color = "orange";
+        break;
+      case 3:
+        message = "Moderate";
+        color = "yellow";
+        break;
+      case 4:
+        message = "Strong";
+        color = "green";
+        break;
+      case 5:
+        message = "Very Strong";
+        color = "green";
+        break;
+      default:
+        message = "";
+    }
+
+    setPasswordStrength({ score, message, color });
+  };
+
+  const validateForm = () => {
+    // Check if passwords match
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      return false;
+    }
+
+    // Check password strength
+    if (passwordStrength.score < 3) {
+      setError("Password is too weak");
+      return false;
+    }
+
+    // Check restaurant code format
+    if (!/^[A-Za-z0-9\-]{4,20}$/.test(formData.restaurantCode)) {
+      setError(
+        "Restaurant code must be 4-20 alphanumeric characters or hyphens"
+      );
+      return false;
+    }
+
+    return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (!validateForm()) return;
+
     setIsLoading(true);
 
     try {
@@ -33,14 +117,14 @@ const SignUpPage = () => {
           username: formData.email,
           email: formData.email,
           password: formData.password,
-          restaurantName: formData.restaurantName, // Now sending restaurantName
+          restaurantName: formData.restaurantName,
         }
       );
 
       // Store the received token and user data
       localStorage.setItem("jwtToken", response.data.token);
       localStorage.setItem("user", JSON.stringify(response.data.user));
-      localStorage.setItem("restaurantName", response.data.restaurantName); // Store restaurant name
+      localStorage.setItem("restaurantName", response.data.restaurantName);
 
       toast.success("Registration successful!");
       navigate("/admin", {
@@ -59,6 +143,33 @@ const SignUpPage = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Password strength indicator component
+  const PasswordStrengthIndicator = () => {
+    if (!formData.password) return null;
+
+    return (
+      <div className="mt-2">
+        <div className="flex items-center gap-2 mb-1">
+          <div
+            className="text-xs font-medium"
+            style={{ color: passwordStrength.color }}
+          >
+            Strength: {passwordStrength.message}
+          </div>
+        </div>
+        <div className="w-full bg-gray-700 rounded-full h-1.5">
+          <div
+            className="h-1.5 rounded-full"
+            style={{
+              width: `${(passwordStrength.score / 5) * 100}%`,
+              backgroundColor: passwordStrength.color,
+            }}
+          ></div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -147,7 +258,7 @@ const SignUpPage = () => {
                   className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
                   placeholder="1234"
                   required
-                  pattern="[A-Za-z0-9\-]{4,20}" // Escape the hyphen
+                  pattern="[A-Za-z0-9\-]{4,20}"
                   title="4-20 alphanumeric characters or hyphens"
                 />
               </div>
@@ -168,7 +279,7 @@ const SignUpPage = () => {
               </div>
             </div>
 
-            <div className="mb-6">
+            <div className="mb-4">
               <label className="block text-gray-300 mb-2 text-sm">
                 Password
               </label>
@@ -182,9 +293,36 @@ const SignUpPage = () => {
                 required
                 minLength="8"
               />
-              <p className="text-xs text-gray-500 mt-2">
-                Minimum 8 characters with letters and numbers
-              </p>
+              <PasswordStrengthIndicator />
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-gray-300 mb-2 text-sm">
+                Confirm Password
+              </label>
+              <input
+                type="password"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
+                placeholder="••••••••"
+                required
+                minLength="8"
+              />
+              {formData.password && formData.confirmPassword && (
+                <p
+                  className={`text-xs mt-2 ${
+                    formData.password === formData.confirmPassword
+                      ? "text-green-400"
+                      : "text-red-400"
+                  }`}
+                >
+                  {formData.password === formData.confirmPassword
+                    ? "Passwords match"
+                    : "Passwords do not match"}
+                </p>
+              )}
             </div>
 
             <motion.button

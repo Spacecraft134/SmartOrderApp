@@ -45,12 +45,28 @@ export function WaiterDashboard() {
     };
   }, []);
   useEffect(() => {
-    const storedUserData = localStorage.getItem("employeeData");
-    if (storedUserData) {
+    // Check both possible localStorage keys
+    const employeeData = localStorage.getItem("employeeData");
+    const userData = localStorage.getItem("userData");
+
+    // Prefer employeeData if it exists
+    const storedData = employeeData || userData;
+
+    if (storedData) {
       try {
-        const { name, role } = JSON.parse(storedUserData);
+        const { name, role } = JSON.parse(storedData);
         setUserName(name || "Waiter");
         setUserRole(role || "WAITER");
+
+        // If we used UserData, clear it and only keep the token
+        if (userData && !employeeData) {
+          const token = localStorage.getItem("token"); // or whatever your token key is
+          localStorage.removeItem("userData");
+          if (token) {
+            localStorage.setItem("employeeToken", token);
+          }
+          localStorage.setItem("employeeData", JSON.stringify({ name, role }));
+        }
       } catch (e) {
         console.error("Failed to parse user data:", e);
         setUserName("Waiter");
@@ -58,7 +74,6 @@ export function WaiterDashboard() {
       }
     }
   }, []);
-
   const playNotification = () => {
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
@@ -299,8 +314,8 @@ export function WaiterDashboard() {
   const handleLogout = async () => {
     try {
       await api.post("/api/employee/logout");
-      localStorage.removeItem("EmployeeData");
-      localStorage.removeItem("EmployeeToken");
+      localStorage.removeItem("employeeData");
+      localStorage.removeItem("employeeToken");
       navigate("/employee/login");
     } catch (error) {
       console.error("Logout failed:", error);

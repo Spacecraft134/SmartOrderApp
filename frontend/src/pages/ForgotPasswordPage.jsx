@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import api from "../pages/Utils/api";
 
@@ -8,7 +8,14 @@ const ForgotPasswordPage = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isEmployeePath, setIsEmployeePath] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    // Check if the current path includes '/employee'
+    setIsEmployeePath(location.pathname.includes("/employee"));
+  }, [location]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -20,17 +27,31 @@ const ForgotPasswordPage = () => {
       return;
     }
 
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const response = await api.post("/api/auth/forgot-password", { email });
+      const endpoint = "/api/auth/forgot-password";
+
+      const response = await api.post(endpoint, { email });
       setSuccess(response.data.message || "Reset link sent to your email");
       setEmail("");
     } catch (err) {
-      setError(err.response?.data?.message || "Error sending reset link");
+      setError(
+        err.response?.data?.message ||
+          "Error sending reset link. Please try again later."
+      );
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const getBackLink = () => {
+    return isEmployeePath ? "/employee/login" : "/login";
   };
 
   return (
@@ -48,17 +69,19 @@ const ForgotPasswordPage = () => {
           >
             <span className="font-bold text-xl text-white">DF</span>
           </motion.div>
-          <h1 className="text-3xl font-bold">Reset Your Password</h1>
+          <h1 className="text-3xl font-bold">
+            {isEmployeePath ? "Employee Password Reset" : "Reset Your Password"}
+          </h1>
           <p className="text-gray-400 mt-2">
             Enter your email to receive a reset link
           </p>
         </div>
 
         <Link
-          to="/login"
+          to={getBackLink()}
           className="text-sm text-cyan-400 hover:text-cyan-300 transition mb-4 inline-block"
         >
-          ← Back to Login
+          ← Back to {isEmployeePath ? "Employee Login" : "Login"}
         </Link>
 
         <motion.div
@@ -68,15 +91,23 @@ const ForgotPasswordPage = () => {
           transition={{ delay: 0.2 }}
         >
           {error && (
-            <div className="mb-4 p-3 bg-red-500/20 text-red-300 rounded-lg text-sm">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 p-3 bg-red-500/20 text-red-300 rounded-lg text-sm"
+            >
               {error}
-            </div>
+            </motion.div>
           )}
 
           {success && (
-            <div className="mb-4 p-3 bg-green-500/20 text-green-300 rounded-lg text-sm">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 p-3 bg-green-500/20 text-green-300 rounded-lg text-sm"
+            >
               {success}
-            </div>
+            </motion.div>
           )}
 
           <form onSubmit={handleSubmit} noValidate>
@@ -92,6 +123,7 @@ const ForgotPasswordPage = () => {
                 placeholder="your@email.com"
                 required
                 autoComplete="email"
+                disabled={isLoading}
               />
             </div>
 
@@ -136,7 +168,7 @@ const ForgotPasswordPage = () => {
             <div className="text-center text-gray-400 text-sm">
               Remember your password?{" "}
               <Link
-                to="/login"
+                to={getBackLink()}
                 className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
               >
                 Sign in
