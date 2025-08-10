@@ -6,7 +6,7 @@ import { SketchPicker } from "react-color";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function TableQRGenerator() {
-  const baseUrl = "http://localhost:5173/customerOrder?table=";
+  const baseUrl = "http://localhost:5173/customerOrder/";
   const [numTables, setNumTables] = useState(10);
   const [generated, setGenerated] = useState(false);
   const [isCustomizing, setIsCustomizing] = useState(false);

@@ -49,12 +49,13 @@ public class SecurityConfig {
                     "/api/menu/public",
                     "/ws/**",
                     "/api/tables/*/session-status",
-                    "/api/orders/by-table/*",
+                    "/api/orders/",
                     "/customerOrder/**",
                     "/thank-you/**",
                    "/topic/**",
                     "/app/**",
-                    "/user/**"
+                    "/user/**",
+                    "/api/orders/by-table/*"
                 ).permitAll()
 
                 // KITCHEN DASHBOARD SPECIFIC ENDPOINTS - Allow admin access

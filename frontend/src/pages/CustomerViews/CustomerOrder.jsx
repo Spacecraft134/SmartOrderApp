@@ -64,7 +64,6 @@ export function CustomerOrder() {
           (message) => {
             try {
               const event = JSON.parse(message.body);
-              // Only navigate if the session was properly ended
               if (event.eventType === "SESSION_PROPERLY_ENDED") {
                 navigate(`/thank-you/${tableID}`);
               }
@@ -106,11 +105,6 @@ export function CustomerOrder() {
       try {
         const res = await axios.get("http://localhost:8080/api/menu/public");
         setMenuItems(res.data);
-
-        // Remove the session creation from here
-        if (tableNumberParam) {
-          navigate(`/guest-orders/${tableID}`);
-        }
       } catch (error) {
         toast.error("Failed to load menu: " + error.message);
       } finally {
@@ -119,7 +113,7 @@ export function CustomerOrder() {
     };
 
     loadMenu();
-  }, [tableID, tableNumberParam, navigate]);
+  }, []);
 
   const uniqueCategory = [
     "All",
@@ -138,7 +132,6 @@ export function CustomerOrder() {
     return categoryMatch && nameMatch;
   });
 
-  // Add item or increase quantity
   const addToCart = (item) => {
     setCart((prev) => {
       const existing = prev.find((i) => i.id === item.id);
@@ -159,7 +152,6 @@ export function CustomerOrder() {
     });
   };
 
-  // Update quantity or remove if quantity <= 0
   const updateQuantity = (id, newQuantity) => {
     if (newQuantity <= 0) return removeFromCart(id);
     setCart((prev) =>
@@ -191,12 +183,12 @@ export function CustomerOrder() {
     setIsSubmitting(true);
 
     try {
-      // 1. Start session - use full URL or configured baseURL
+      // 1. Start session
       await axios.post(
         `http://localhost:8080/api/tables/${tableID}/start-session`
       );
 
-      // 2. Submit order
+      // 2. Submit order (removed Authorization header since endpoint is public)
       const orderData = {
         tableNumber: tableID,
         items: cart.map((item) => ({
@@ -212,7 +204,7 @@ export function CustomerOrder() {
         {
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`, // If needed
+            // Removed Authorization header since this is a public endpoint
           },
         }
       );
@@ -220,6 +212,7 @@ export function CustomerOrder() {
       toast.success("Order Placed Successfully!");
       setCart([]);
       setIsCartOpen(false);
+
       navigate(`/guest-orders/${tableID}`);
     } catch (error) {
       console.error("Order error:", {
@@ -242,7 +235,6 @@ export function CustomerOrder() {
 
     setHelpRequestSending(true);
 
-    // First send the help request
     axios
       .post("http://localhost:8080/api/help-requests", {
         tableNumber: tableID,
@@ -257,7 +249,6 @@ export function CustomerOrder() {
         setIsHelpDropdownOpen(false);
         setTimeout(() => setHelpRequested(false), 30000);
 
-        // Special handling for bill requests
         if (reason === "Need bill") {
           if (clientRef.current) {
             clientRef.current.publish({

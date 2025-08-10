@@ -1,65 +1,66 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { motion } from "framer-motion";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
-import { motion } from "framer-motion";
-import { ThankYou } from "../CustomerViews/ThankyouPage";
 
 export function CustomerOrdersList() {
   const { tableNumber } = useParams();
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [sessionEnded, setSessionEnded] = useState(false);
   const clientRef = useRef(null);
-  const [isNavigating, setIsNavigating] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
+  const [hasOrders, setHasOrders] = useState(false);
+  const [sessionActive, setSessionActive] = useState(false);
 
-  // Check session status
-  const checkSession = async () => {
-    try {
-      const res = await axios.get(
-        `http://localhost:8080/api/tables/${tableNumber}/session-status`
-      );
-      if (!res.data) {
-        setSessionEnded(true);
-        navigate(`/thank-you/${tableNumber}`);
-      }
-      return res.data;
-    } catch (error) {
-      console.error("Session check failed:", error);
-      toast.error("Failed to verify session");
-      return false;
-    }
-  };
-
-  // Fetch orders
+  // Fetch orders without requiring authentication
   const fetchOrders = async () => {
     setLoading(true);
     try {
       const ordersRes = await axios.get(
-        `http://localhost:8080/api/orders/by-table/${tableNumber}`
+        `http://localhost:8080/api/orders/by-table/${tableNumber}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            // No Authorization header needed since endpoint is public
+          },
+        }
       );
-      const fetched = Array.isArray(ordersRes.data)
-        ? ordersRes.data
-        : [ordersRes.data];
-      setOrders(
-        fetched
-          .filter((o) => o.statusOfOrder !== "COMPLETED")
-          .sort((a, b) => new Date(b.time) - new Date(a.time))
-      );
+
+      let fetched = [];
+      if (ordersRes.data && Array.isArray(ordersRes.data)) {
+        fetched = ordersRes.data;
+      } else if (ordersRes.data) {
+        fetched = [ordersRes.data];
+      }
+
+      const activeOrders = fetched
+        .filter((o) => o.statusOfOrder !== "COMPLETED")
+        .sort((a, b) => new Date(b.time) - new Date(a.time));
+
+      setOrders(activeOrders);
+      setHasOrders(activeOrders.length > 0);
+
+      // If we just placed an order but got no results, show a message
+      if (activeOrders.length === 0) {
+        toast.info("Your order is being processed. Please wait...");
+      }
     } catch (err) {
-      toast.error("Failed to load orders");
-      console.error(err);
+      console.error("Error fetching orders:", err);
+      toast.error("Failed to load orders. Please refresh the page.");
+      setOrders([]);
+      setHasOrders(false);
     } finally {
       setLoading(false);
     }
   };
 
-  // Initialize WebSocket
+  // Initialize WebSocket connection
   const initWebSocket = () => {
     const socket = new SockJS("http://localhost:8080/ws");
     const stompClient = new Client({
@@ -69,8 +70,6 @@ export function CustomerOrdersList() {
       heartbeatOutgoing: 4000,
       onConnect: () => {
         setWsConnected(true);
-
-        // Subscribe to order updates
         stompClient.subscribe(`/topic/orders/${tableNumber}`, (message) => {
           if (!message?.body) return;
           try {
@@ -102,14 +101,13 @@ export function CustomerOrdersList() {
           }
         });
 
-        // Subscribe to session events
         stompClient.subscribe(
           `/topic/session-ended/${tableNumber}`,
           (message) => {
             if (!message?.body) return;
             try {
               const event = JSON.parse(message.body);
-              if (event.eventType === "SESSION_ENDED") {
+              if (event.eventType === "SESSION_PROPERLY_ENDED") {
                 setSessionEnded(true);
                 navigate(`/thank-you/${tableNumber}`);
               }
@@ -133,17 +131,30 @@ export function CustomerOrdersList() {
     return stompClient;
   };
 
-  // Initial load
   useEffect(() => {
     let isMounted = true;
     let stompClient = null;
 
     const initialize = async () => {
-      const sessionActive = await checkSession();
-      if (!sessionActive || !isMounted) return;
+      if (!isMounted) return;
 
+      // First check if session is active
+      try {
+        const res = await axios.get(
+          `http://localhost:8080/api/tables/${tableNumber}/session-status`
+        );
+        setSessionActive(res.data);
+      } catch (error) {
+        console.error("Session check failed:", error);
+        setSessionActive(false);
+      }
+
+      // Then fetch orders
       await fetchOrders();
-      stompClient = initWebSocket();
+
+      if (isMounted) {
+        stompClient = initWebSocket();
+      }
     };
 
     initialize();
@@ -151,37 +162,15 @@ export function CustomerOrdersList() {
     return () => {
       isMounted = false;
       if (stompClient?.active) {
-        stompClient.deactivate().catch((err) => {
-          console.error("Failed to clean up WebSocket:", err);
-        });
+        stompClient.deactivate();
       }
     };
   }, [tableNumber]);
 
-  // Handle order more button
-  const handleOrderMore = async () => {
-    setIsNavigating(true);
-    try {
-      // Verify session is still active
-      const sessionActive = await checkSession();
-      if (!sessionActive) return;
-
-      // Clean up WebSocket if connected
-      if (clientRef.current?.active) {
-        await clientRef.current.deactivate();
-      }
-
-      // Navigate to order page
-      navigate(`/customerOrder/${tableNumber}`);
-    } catch (err) {
-      console.error("Navigation failed:", err);
-      toast.error("Failed to navigate to order page");
-    } finally {
-      setIsNavigating(false);
-    }
+  const handleOrderMore = () => {
+    navigate(`/customerOrder/${tableNumber}`);
   };
 
-  // Status display helpers
   const getStatusText = (status) => {
     switch (status) {
       case "WAITING_FOR_CONFIRMATION":
@@ -211,7 +200,7 @@ export function CustomerOrdersList() {
   };
 
   if (sessionEnded) {
-    return <ThankYou />;
+    return <div>Redirecting to thank you page...</div>;
   }
 
   return (
@@ -226,12 +215,22 @@ export function CustomerOrdersList() {
               Reconnecting to live updates...
             </span>
           )}
+
+          <div
+            className={`text-sm px-2 py-1 rounded ${
+              sessionActive
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
+            }`}
+          >
+            {sessionActive ? "Session Active" : "Session Inactive"}
+          </div>
+
           <button
             onClick={handleOrderMore}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold shadow hover:bg-blue-700 transition"
-            disabled={loading || isNavigating}
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold shadow hover:bg-blue-700 transition-colors"
           >
-            {isNavigating ? "Redirecting..." : "Order More"}
+            Order More
           </button>
         </div>
       </div>
@@ -243,11 +242,18 @@ export function CustomerOrdersList() {
       ) : orders.length === 0 ? (
         <div className="text-center p-8 bg-gray-50 rounded-lg">
           <p className="text-lg text-gray-600 mb-4">
-            No active orders currently.
+            {sessionActive
+              ? "No active orders found. Your order may still be processing."
+              : "Your session is not active. Please place a new order."}
           </p>
-          <p className="text-gray-500">
-            Use the "Order More" button above to place your order.
-          </p>
+          {sessionActive && (
+            <button
+              onClick={handleOrderMore}
+              className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold shadow hover:bg-blue-700 transition-colors text-lg"
+            >
+              Place New Order
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
