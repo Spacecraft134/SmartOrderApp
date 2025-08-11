@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { toast } from "react-toastify";
 import { useAuth } from "../Context/AuthContext";
+import api from "../Utils/api"; // Use your existing configured api instance
 
 export function EditableThankYou() {
-  const { user } = useAuth();
+  const { user } = useAuth(); // Remove authToken since we're using the configured api instance
   const [formData, setFormData] = useState({
     title: "",
     subtitle: "",
@@ -17,24 +17,56 @@ export function EditableThankYou() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log("Current user object:", user);
+    console.log("Restaurant ID:", user?.restaurantId);
+    console.log("User token:", user?.token);
+
     const fetchThankYouPage = async () => {
+      if (!user?.restaurantId) {
+        console.error("No restaurantId available");
+        setLoading(false);
+        return;
+      }
+
       try {
-        const res = await axios.get(
-          `http://localhost:8080/api/thank-you/restaurant/${user.restaurantId}`
+        const res = await api.get(
+          `/api/thank-you-content/restaurant/${user.restaurantId}`
         );
+        console.log("Fetched data:", res.data);
+
         if (res.data) {
-          setFormData(res.data);
+          // Clean the data to only include the fields we need for the form
+          const cleanData = {
+            id: res.data.id,
+            title: res.data.title,
+            subtitle: res.data.subtitle,
+            googleReviewLink: res.data.googleReviewLink,
+            websiteLink: res.data.websiteLink,
+            backgroundColor: res.data.backgroundColor,
+            textColor: res.data.textColor,
+            buttonColor: res.data.buttonColor,
+          };
+          setFormData(cleanData);
         }
       } catch (error) {
         console.error("Error fetching thank you page:", error);
-        toast.error("Failed to load thank you page settings");
+        console.error("Error response:", error.response?.data);
+
+        if (error.response?.status === 401) {
+          toast.error("Session expired. Please login again.");
+        } else if (error.response?.status === 404) {
+          // This is expected for new restaurants - use default values
+          console.log("No existing thank you page found, using defaults");
+        } else {
+          toast.error("Failed to load thank you page settings");
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchThankYouPage();
-  }, [user.restaurantId]);
+  }, [user?.restaurantId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -46,22 +78,42 @@ export function EditableThankYou() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const response = formData.id
-        ? await axios.put(
-            `http://localhost:8080/api/thank-you/${formData.id}`,
-            formData
-          )
-        : await axios.post("http://localhost:8080/api/thank-you", {
-            ...formData,
-            restaurantId: user.restaurantId,
-          });
 
-      setFormData(response.data);
-      toast.success("Thank you page saved successfully!");
+    const dataToSend = {
+      title: formData.title,
+      subtitle: formData.subtitle,
+      googleReviewLink: formData.googleReviewLink,
+      websiteLink: formData.websiteLink,
+      backgroundColor: formData.backgroundColor,
+      textColor: formData.textColor,
+      buttonColor: formData.buttonColor,
+      restaurant: { id: user.restaurantId },
+    };
+
+    try {
+      const url = formData.id
+        ? `http://localhost:8080/api/thank-you-content/${formData.id}`
+        : "http://localhost:8080/api/thank-you-content";
+
+      const method = formData.id ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token}`, // <-- Add this!
+        },
+        body: JSON.stringify(dataToSend),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to save: ${response.statusText}`);
+      }
+
+      toast.success("Thank You page saved successfully!");
     } catch (error) {
-      console.error("Error saving thank you page:", error);
-      toast.error("Failed to save thank you page");
+      console.error(error);
+      toast.error("Error saving Thank You page");
     }
   };
 

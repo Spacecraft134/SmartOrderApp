@@ -10,8 +10,9 @@ export function ThankYou() {
   useEffect(() => {
     const fetchThankYouPage = async () => {
       try {
+        // Fixed URL to match your backend controller
         const res = await axios.get(
-          `http://localhost:8080/api/thank-you/restaurant/${restaurantId}`
+          `http://localhost:8080/api/thank-you-content/restaurant/${restaurantId}`
         );
         setThankYouData(res.data);
       } catch (error) {

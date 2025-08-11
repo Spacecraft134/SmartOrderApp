@@ -55,8 +55,15 @@ public class SecurityConfig {
                    "/topic/**",
                     "/app/**",
                     "/user/**",
-                    "/api/orders/by-table/*"
+                    "/api/orders/by-table/*",
+                   "/api/thank-you",
+                   "/api/thank-you/restaurant/**"
                 ).permitAll()
+                
+                .requestMatchers(HttpMethod.POST, "/api/thank-you-content").hasAnyAuthority("ROLE_ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/thank-you-content/**").hasAnyAuthority("ROLE_ADMIN")
+
+                
 
                 // KITCHEN DASHBOARD SPECIFIC ENDPOINTS - Allow admin access
                 .requestMatchers(HttpMethod.GET, "/api/orders/kitchen-queue").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN")
