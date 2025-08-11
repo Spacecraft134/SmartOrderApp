@@ -19,6 +19,7 @@ import {
   FiDollarSign,
   FiTrendingUp,
   FiUpload,
+  FiAlertTriangle,
 } from "react-icons/fi";
 import { saveAs } from "file-saver";
 
@@ -40,10 +41,9 @@ import { Close } from "@mui/icons-material";
 import { CustomerOrder } from "../CustomerViews/CustomerOrder";
 import { WaiterDashboard } from "../WaiterDashboard";
 import { KitchenDashboard } from "../KitchenDashboard";
-import { EditableThankYou } from "../AdminViews/EditableThankYou";
 import api from "../Utils/api";
 import { useAuth } from "../Context/AuthContext";
-
+import { ThankYou } from "../CustomerViews/ThankyouPage";
 export function AdminDashboard() {
   const { user } = useAuth();
   const [loading, setLoading] = useState({
@@ -64,6 +64,14 @@ export function AdminDashboard() {
   const [openWaiter, setOpenWaiter] = useState(false);
   const [openKitchen, setOpenKitchen] = useState(false);
   const [openThankYou, setOpenThankYou] = useState(false);
+
+  // Warning dialog states
+  const [warningDialog, setWarningDialog] = useState({
+    open: false,
+    type: "", // 'customer', 'waiter', or 'kitchen'
+    title: "",
+    message: "",
+  });
 
   const [adminName, setAdminName] = useState("Admin");
 
@@ -195,6 +203,55 @@ export function AdminDashboard() {
 
     fetchSalesData();
   }, [timeRange]);
+
+  // Warning dialog handlers
+  const handleViewButtonClick = (viewType) => {
+    const warnings = {
+      customer: {
+        title: "⚠️ Customer View Warning",
+        message:
+          "You are about to enter the Customer View. Please be careful not to place any orders or modify customer data, as this will affect real customer experience and order processing.",
+      },
+      waiter: {
+        title: "⚠️ Waiter Dashboard Warning",
+        message:
+          "You are about to enter the Waiter Dashboard. This view is unstable for admin use. Do not update order statuses or modify waiter tasks, as this will disrupt actual restaurant operations.",
+      },
+      kitchen: {
+        title: "⚠️ Kitchen Dashboard Warning",
+        message:
+          "You are about to enter the Kitchen Dashboard. Please do not mark orders as completed or modify cooking statuses, as this will affect real kitchen operations and order fulfillment.",
+      },
+    };
+
+    setWarningDialog({
+      open: true,
+      type: viewType,
+      ...warnings[viewType],
+    });
+  };
+
+  const handleWarningConfirm = () => {
+    const { type } = warningDialog;
+    setWarningDialog({ open: false, type: "", title: "", message: "" });
+
+    // Open the corresponding modal after warning
+    switch (type) {
+      case "customer":
+        setOpenCustomer(true);
+        break;
+      case "waiter":
+        setOpenWaiter(true);
+        break;
+      case "kitchen":
+        setOpenKitchen(true);
+        break;
+    }
+  };
+
+  const handleWarningCancel = () => {
+    setWarningDialog({ open: false, type: "", title: "", message: "" });
+  };
 
   if (error) {
     return (
@@ -401,7 +458,6 @@ export function AdminDashboard() {
           <p className="text-gray-500">Here's your dashboard overview.</p>
         </div>
       </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         {stats.map((stat, index) => (
           <div key={index} className="bg-white p-5 rounded-xl shadow-sm">
@@ -415,7 +471,6 @@ export function AdminDashboard() {
           </div>
         ))}
       </div>
-
       <div className="flex space-x-3">
         <div className="relative group">
           <button className="flex items-center px-4 py-2 border rounded-lg hover:bg-gray-50">
@@ -437,27 +492,30 @@ export function AdminDashboard() {
           </div>
         </div>
       </div>
-
+      {/* View Buttons with Warnings */}
       <div className="flex space-x-4 mt-8">
         <button
-          onClick={() => setOpenCustomer(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
+          onClick={() => handleViewButtonClick("customer")}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center relative"
         >
           <span className="mr-2">👨‍💼</span> Customer View
+          <FiAlertTriangle className="ml-2 text-yellow-300" size={16} />
         </button>
 
         <button
-          onClick={() => setOpenWaiter(true)}
-          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center"
+          onClick={() => handleViewButtonClick("waiter")}
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center relative"
         >
           <span className="mr-2">👨‍🍳</span> Waiter View
+          <FiAlertTriangle className="ml-2 text-yellow-300" size={16} />
         </button>
 
         <button
-          onClick={() => setOpenKitchen(true)}
-          className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg flex items-center"
+          onClick={() => handleViewButtonClick("kitchen")}
+          className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg flex items-center relative"
         >
           <span className="mr-2">🍳</span> Kitchen View
+          <FiAlertTriangle className="ml-2 text-yellow-300" size={16} />
         </button>
 
         <button
@@ -467,7 +525,59 @@ export function AdminDashboard() {
           <span className="mr-2">🙏</span> Thank You Page
         </button>
       </div>
-
+      {/* Warning Dialog */}
+      <Dialog
+        open={warningDialog.open}
+        onClose={handleWarningCancel}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          style: {
+            borderRadius: "12px",
+          },
+        }}
+      >
+        <DialogTitle className="bg-yellow-50 border-b">
+          <div className="flex items-center">
+            <FiAlertTriangle className="text-yellow-600 mr-3" size={24} />
+            <span className="text-lg font-semibold text-gray-900">
+              {warningDialog.title}
+            </span>
+          </div>
+        </DialogTitle>
+        <DialogContent className="p-6">
+          <div className="mb-6">
+            <p className="text-gray-700 leading-relaxed">
+              {warningDialog.message}
+            </p>
+          </div>
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
+            <div className="flex">
+              <FiAlertTriangle className="text-red-400 mr-2 mt-1" size={16} />
+              <p className="text-sm text-red-700">
+                <strong>Important:</strong> Any changes made in this view will
+                affect live restaurant operations!
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={handleWarningCancel}
+              className="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleWarningConfirm}
+              className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors flex items-center"
+            >
+              <FiAlertTriangle className="mr-2" size={16} />I Understand,
+              Proceed
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* Existing Dialogs */}
       <Dialog
         open={openCustomer}
         onClose={() => setOpenCustomer(false)}
@@ -479,9 +589,12 @@ export function AdminDashboard() {
         }}
       >
         <DialogTitle className="flex justify-between items-center bg-white shadow-sm sticky top-0 z-10">
-          <span className="text-xl font-semibold">
-            Admin View: Customer DashBoard
-          </span>
+          <div className="flex items-center">
+            <FiAlertTriangle className="text-yellow-600 mr-2" size={20} />
+            <span className="text-xl font-semibold">
+              Admin View: Customer Dashboard (VIEW ONLY - DO NOT PLACE ORDERS)
+            </span>
+          </div>
           <IconButton
             onClick={() => setOpenCustomer(false)}
             className="hover:bg-gray-100"
@@ -496,7 +609,6 @@ export function AdminDashboard() {
           </div>
         </DialogContent>
       </Dialog>
-
       <Dialog
         open={openWaiter}
         onClose={() => setOpenWaiter(false)}
@@ -508,9 +620,12 @@ export function AdminDashboard() {
         }}
       >
         <DialogTitle className="flex justify-between items-center bg-white shadow-sm sticky top-0 z-10">
-          <span className="text-xl font-semibold">
-            Admin View: Waiter DashBoard(NOTE: VIEW IS UNSTABLE FOR ADMIN)
-          </span>
+          <div className="flex items-center">
+            <FiAlertTriangle className="text-yellow-600 mr-2" size={20} />
+            <span className="text-xl font-semibold">
+              Admin View: Waiter Dashboard (UNSTABLE - DO NOT MODIFY ORDERS)
+            </span>
+          </div>
           <IconButton
             onClick={() => setOpenWaiter(false)}
             className="hover:bg-gray-100"
@@ -525,7 +640,6 @@ export function AdminDashboard() {
           </div>
         </DialogContent>
       </Dialog>
-
       <Dialog
         open={openKitchen}
         onClose={() => setOpenKitchen(false)}
@@ -537,9 +651,13 @@ export function AdminDashboard() {
         }}
       >
         <DialogTitle className="flex justify-between items-center bg-white shadow-sm sticky top-0 z-10">
-          <span className="text-xl font-semibold">
-            Admin View: Kitchen Dashboard
-          </span>
+          <div className="flex items-center">
+            <FiAlertTriangle className="text-yellow-600 mr-2" size={20} />
+            <span className="text-xl font-semibold">
+              Admin View: Kitchen Dashboard (VIEW ONLY - DO NOT MARK ORDERS
+              COMPLETE)
+            </span>
+          </div>
           <IconButton
             onClick={() => setOpenKitchen(false)}
             className="hover:bg-gray-100"
@@ -577,11 +695,11 @@ export function AdminDashboard() {
         </DialogTitle>
         <DialogContent className="overflow-y-auto p-0">
           <div className="h-full">
-            <EditableThankYou />
+            <ThankYou />
           </div>
         </DialogContent>
       </Dialog>
-
+      {/* Charts and Data */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="bg-white p-5 rounded-xl shadow-sm">
           <h2 className="text-lg font-semibold mb-4">Busy Hours Predictor</h2>
@@ -639,7 +757,6 @@ export function AdminDashboard() {
           )}
         </div>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 bg-white p-5 rounded-xl shadow-sm">
           <div className="flex justify-between items-center mb-4">

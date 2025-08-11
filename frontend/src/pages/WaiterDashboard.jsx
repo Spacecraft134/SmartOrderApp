@@ -4,7 +4,6 @@ import "react-toastify/dist/ReactToastify.css";
 import { motion } from "framer-motion";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
-import axios from "axios";
 import api from "../pages/Utils/api";
 import {
   FiCheck,
@@ -15,6 +14,7 @@ import {
   FiPower,
   FiEye,
   FiLogOut,
+  FiX,
 } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
 import notificationSound from "../assets/ding-101492.mp3";
@@ -30,9 +30,13 @@ export function WaiterDashboard() {
   const [userRole, setUserRole] = useState(null);
 
   const navigate = useNavigate();
-
   const clientRef = useRef(null);
   const audioRef = useRef(null);
+
+  // Check if this is an admin view (either from path or query param)
+  const isAdminView =
+    window.location.pathname.includes("/admin-view") ||
+    new URLSearchParams(window.location.search).has("admin-view");
 
   useEffect(() => {
     audioRef.current = new Audio(notificationSound);
@@ -44,36 +48,30 @@ export function WaiterDashboard() {
       }
     };
   }, []);
+
   useEffect(() => {
-    // Check both possible localStorage keys
+    // Admin view handling - absolutely no localStorage modifications
+    if (isAdminView) {
+      setUserName("Admin View Mode");
+      setUserRole("ADMIN_VIEW");
+      return;
+    }
+
+    // Regular waiter handling - only runs when not in admin view
     const employeeData = localStorage.getItem("employeeData");
-    const userData = localStorage.getItem("userData");
-
-    // Prefer employeeData if it exists
-    const storedData = employeeData || userData;
-
-    if (storedData) {
+    if (employeeData) {
       try {
-        const { name, role } = JSON.parse(storedData);
+        const { name, role } = JSON.parse(employeeData);
         setUserName(name || "Waiter");
         setUserRole(role || "WAITER");
-
-        // If we used UserData, clear it and only keep the token
-        if (userData && !employeeData) {
-          const token = localStorage.getItem("token"); // or whatever your token key is
-          localStorage.removeItem("userData");
-          if (token) {
-            localStorage.setItem("employeeToken", token);
-          }
-          localStorage.setItem("employeeData", JSON.stringify({ name, role }));
-        }
       } catch (e) {
-        console.error("Failed to parse user data:", e);
+        console.error("Failed to parse employee data:", e);
         setUserName("Waiter");
         setUserRole("WAITER");
       }
     }
-  }, []);
+  }, [isAdminView]);
+
   const playNotification = () => {
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
@@ -115,7 +113,6 @@ export function WaiterDashboard() {
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
       onConnect: () => {
-        // Help Requests Channel
         stompClient.subscribe("/topic/help-requests", (message) => {
           if (!message?.body) return;
           try {
@@ -145,7 +142,6 @@ export function WaiterDashboard() {
           }
         });
 
-        // Orders Channel
         stompClient.subscribe("/topic/orders", (message) => {
           if (!message?.body) return;
           try {
@@ -180,7 +176,6 @@ export function WaiterDashboard() {
           }
         });
 
-        // Active Tables Channel
         stompClient.subscribe("/topic/active-tables", (message) => {
           if (!message?.body) return;
           try {
@@ -218,12 +213,14 @@ export function WaiterDashboard() {
   }, []);
 
   const deleteRequest = async (id) => {
+    if (isAdminView) {
+      toast.warning("Read-only mode: Action disabled in admin view");
+      return;
+    }
+
     try {
       const response = await api.delete(`/api/help-requests/${id}`);
-
       toast.success("Request deleted");
-
-      // Optimistic UI update
       setRequests((prev) => prev.filter((req) => req.id !== id));
     } catch (error) {
       console.error("Delete error details:", {
@@ -240,6 +237,11 @@ export function WaiterDashboard() {
   };
 
   const confirmOrder = async (id) => {
+    if (isAdminView) {
+      toast.warning("Read-only mode: Action disabled in admin view");
+      return;
+    }
+
     try {
       const token = localStorage.getItem("employeeToken");
       if (!token) throw new Error("No token found");
@@ -250,7 +252,6 @@ export function WaiterDashboard() {
         },
       });
 
-      // Update the UI after successful confirmation
       setOrders((prev) => prev.filter((order) => order.id !== id));
       toast.success("Order confirmed and sent to kitchen");
     } catch (error) {
@@ -297,6 +298,11 @@ export function WaiterDashboard() {
     });
 
   const processBillAndEndSession = async (tableNumber) => {
+    if (isAdminView) {
+      toast.warning("Read-only mode: Action disabled in admin view");
+      return;
+    }
+
     try {
       await api.post(`/api/tables/${tableNumber}/process-bill`);
       await api.post(`/api/tables/${tableNumber}/end-session`);
@@ -312,6 +318,12 @@ export function WaiterDashboard() {
   };
 
   const handleLogout = async () => {
+    if (isAdminView) {
+      // Simply close the view without affecting admin session
+      window.history.back();
+      return;
+    }
+
     try {
       await api.post("/api/employee/logout");
       localStorage.removeItem("employeeData");
@@ -324,16 +336,45 @@ export function WaiterDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 w-full">
-      <header className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-8 px-8 shadow-xl w-full">
+    <div
+      className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 w-full ${
+        isAdminView ? "fixed inset-0 z-50 bg-white" : ""
+      }`}
+    >
+      {/* Admin View Warning Banner */}
+      {isAdminView && (
+        <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-white text-center py-3 z-50 shadow-lg flex items-center justify-center">
+          <FiAlertTriangle className="mr-2" size={20} />
+          <span className="font-bold">ADMIN VIEW MODE</span> - All actions are
+          disabled. Your admin session remains secure.
+        </div>
+      )}
+
+      <header
+        className={`bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-8 px-8 shadow-xl w-full ${
+          isAdminView ? "mt-10" : ""
+        }`}
+      >
         <div className="max-w-full mx-auto flex justify-between items-center">
           <div>
-            <h1 className="text-4xl font-bold">Waiter Dashboard</h1>
-            {userRole === "WAITER" && (
-              <h2 className="text-3xl font-bold mt-2">Hello, {userName}</h2>
-            )}
+            <h1 className="text-4xl font-bold">
+              {isAdminView
+                ? "Waiter Dashboard (Admin View)"
+                : "Waiter Dashboard"}
+            </h1>
+            <h2 className="text-3xl font-bold mt-2">
+              {isAdminView ? "View Only Mode" : `Hello, ${userName}`}
+            </h2>
           </div>
-          {userRole === "WAITER" && (
+          {isAdminView ? (
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-6 py-3 rounded-xl text-lg transition-colors"
+            >
+              <FiX size={20} />
+              Close View
+            </button>
+          ) : (
             <button
               onClick={handleLogout}
               className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-6 py-3 rounded-xl text-lg transition-colors"
@@ -454,7 +495,12 @@ export function WaiterDashboard() {
                         </div>
                         <button
                           onClick={() => deleteRequest(req.id)}
-                          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-lg"
+                          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-lg ${
+                            isAdminView
+                              ? "bg-gray-400 text-gray-700 cursor-not-allowed"
+                              : "bg-red-600 hover:bg-red-700 text-white"
+                          }`}
+                          disabled={isAdminView}
                         >
                           <FiTrash2 size={18} />
                           Delete
@@ -518,7 +564,12 @@ export function WaiterDashboard() {
                         </div>
                         <button
                           onClick={() => confirmOrder(order.id)}
-                          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-lg"
+                          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-lg ${
+                            isAdminView
+                              ? "bg-gray-400 text-gray-700 cursor-not-allowed"
+                              : "bg-blue-600 hover:bg-blue-700 text-white"
+                          }`}
+                          disabled={isAdminView}
                         >
                           <FiCheck size={18} />
                           Confirm
@@ -583,7 +634,12 @@ export function WaiterDashboard() {
                   <div className="mt-auto flex flex-col space-y-3 w-full">
                     <button
                       onClick={() => processBillAndEndSession(table)}
-                      className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-lg font-medium transition-colors"
+                      className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-lg font-medium transition-colors ${
+                        isAdminView
+                          ? "bg-gray-400 text-gray-700 cursor-not-allowed"
+                          : "bg-red-600 hover:bg-red-700 text-white"
+                      }`}
+                      disabled={isAdminView}
                     >
                       <FiPower size={18} />
                       Process Bill & End

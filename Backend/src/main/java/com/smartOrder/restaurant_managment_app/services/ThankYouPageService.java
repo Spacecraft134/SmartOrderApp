@@ -2,38 +2,52 @@ package com.smartOrder.restaurant_managment_app.services;
 
 import com.smartOrder.restaurant_managment_app.Models.ThankYouContent;
 import com.smartOrder.restaurant_managment_app.repository.ThankYouContentRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class ThankYouPageService {
 
-    private final ThankYouContentRepository thankYouPageRepository;
+    private static final Logger logger = LoggerFactory.getLogger(ThankYouPageService.class);
+    private final ThankYouContentRepository repository;
 
-    @Autowired
-    public ThankYouPageService(ThankYouContentRepository thankYouPageRepository) {
-        this.thankYouPageRepository = thankYouPageRepository;
+    public ThankYouPageService(ThankYouContentRepository repository) {
+        this.repository = repository;
     }
 
+    @Transactional(readOnly = true)
     public ThankYouContent findByRestaurantId(Long restaurantId) {
-        return thankYouPageRepository.findByRestaurantId(restaurantId);
+        return repository.findFirstByRestaurantIdOrderByIdDesc(restaurantId)
+                .orElse(null);
     }
 
     @Transactional
-    public ThankYouContent save(ThankYouContent thankYouPage) {
-        return thankYouPageRepository.save(thankYouPage);
-    }
-
-    @Transactional
-    public ThankYouContent update(ThankYouContent thankYouPage) {
-        if (!thankYouPageRepository.existsById(thankYouPage.getId())) {
-            throw new RuntimeException("Thank you page not found");
+    public ThankYouContent save(ThankYouContent content) {
+        if (content.getRestaurant() == null || content.getRestaurant().getId() == null) {
+            throw new IllegalArgumentException("Restaurant ID is required");
         }
-        return thankYouPageRepository.save(thankYouPage);
+        
+        return repository.findFirstByRestaurantIdOrderByIdDesc(content.getRestaurant().getId())
+                .map(existing -> {
+                    existing.setTitle(content.getTitle());
+                    existing.setSubtitle(content.getSubtitle());
+                    existing.setGoogleReviewLink(content.getGoogleReviewLink());
+                    existing.setWebsiteLink(content.getWebsiteLink());
+                    existing.setBackgroundColor(content.getBackgroundColor());
+                    existing.setTextColor(content.getTextColor());
+                    existing.setButtonColor(content.getButtonColor());
+                    return repository.save(existing);
+                })
+                .orElseGet(() -> repository.save(content));
     }
 
-    public boolean existsById(Long id) {
-        return thankYouPageRepository.existsById(id);
+    @Transactional
+    public ThankYouContent update(ThankYouContent content) {
+        if (!repository.existsById(content.getId())) {
+            throw new IllegalArgumentException("Content not found with ID: " + content.getId());
+        }
+        return repository.save(content);
     }
 }

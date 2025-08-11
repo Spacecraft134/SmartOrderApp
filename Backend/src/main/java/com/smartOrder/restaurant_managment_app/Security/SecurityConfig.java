@@ -39,6 +39,11 @@ public class SecurityConfig {
                 .requestMatchers("/api/employee/login").permitAll()
                 .requestMatchers("/api/employee/verify-credentials").permitAll()
 
+                // Thank you content endpoints - FIXED ORDER
+                .requestMatchers(HttpMethod.GET, "/api/thank-you-content/restaurant/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/thank-you-content").hasAnyAuthority("ROLE_ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/thank-you-content/**").hasAnyAuthority("ROLE_ADMIN")
+
                 // Other public endpoints
                 .requestMatchers(
                     "/login",
@@ -59,11 +64,6 @@ public class SecurityConfig {
                    "/api/thank-you",
                    "/api/thank-you/restaurant/**"
                 ).permitAll()
-                
-                .requestMatchers(HttpMethod.POST, "/api/thank-you-content").hasAnyAuthority("ROLE_ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/thank-you-content/**").hasAnyAuthority("ROLE_ADMIN")
-
-                
 
                 // KITCHEN DASHBOARD SPECIFIC ENDPOINTS - Allow admin access
                 .requestMatchers(HttpMethod.GET, "/api/orders/kitchen-queue").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN")
