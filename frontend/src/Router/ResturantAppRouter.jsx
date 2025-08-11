@@ -33,17 +33,14 @@ export default function ResturantAppRouter() {
         {/* CUSTOMER ROUTES - Fixed paths for correct flow */}
         {/* First-time visitors (from QR codes) go to order page */}
         <Route path="/customerOrder/:tableNumber" element={<CustomerOrder />} />
-        <Route
-          path="/thank-you/:restaurantId/:tableNumber"
-          element={<ThankYou />}
-        />
+
+        <Route path="/thank-you/:tableNumber" element={<ThankYou />} />
         {/* After ordering, they get redirected to orders list */}
         <Route
           path="/guest-orders/:tableNumber"
           element={<CustomerOrdersList />}
         />
-        {/* Thank you page after session ends */}
-        <Route path="/thank-you/:tableNumber" element={<ThankYou />} />
+
         {/* ADMIN ROUTES */}
         <Route
           path="/tableQRs"
