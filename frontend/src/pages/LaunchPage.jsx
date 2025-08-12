@@ -1,12 +1,30 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import emailjs from "emailjs-com";
+import LiveOrder from "../assets/image.png";
+import CustomerOrderPic from "../assets/Screenshot 2025-08-11 203504.png";
+import AnalyticsDashboard from "../assets/Screenshot 2025-08-11 203604.png";
+import MenuManagementPic from "../assets/Screenshot 2025-08-11 203619 - Copy.png";
+import WaiterDashboard from "../assets/Screenshot 2025-08-11 203635 - Copy.png";
+import KitchenDashboard from "../assets/Screenshot 2025-08-11 203723.png";
+import QrCodePic from "../assets/Screenshot 2025-08-11 203749.png";
+import HelpRequestPic from "../assets/Screenshot 2025-08-11 203736.png";
 
 export const LaunchPage = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const navigate = useNavigate();
+
+  // Contact form state
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    message: "",
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState(null);
 
   // Handle scroll effect for navbar
   useEffect(() => {
@@ -24,6 +42,53 @@ export const LaunchPage = () => {
     }, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // Handle form input changes
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  // Handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitStatus(null);
+
+    try {
+      // Initialize EmailJS (you'll need to create an account and get these credentials)
+      emailjs.init("YOUR_USER_ID"); // Replace with your EmailJS user ID
+
+      // Send email using EmailJS
+      await emailjs.send(
+        "YOUR_SERVICE_ID", // Replace with your EmailJS service ID
+        "YOUR_TEMPLATE_ID", // Replace with your EmailJS template ID
+        {
+          from_name: formData.name,
+          from_email: formData.email,
+          message: formData.message,
+          to_email: "dineflowinc@gmail.com",
+        }
+      );
+
+      setSubmitStatus({
+        success: true,
+        message: "Message sent successfully! We will get back to you soon.",
+      });
+      setFormData({ name: "", email: "", message: "" });
+    } catch (error) {
+      console.error("Error sending email:", error);
+      setSubmitStatus({
+        success: false,
+        message: "Failed to send message. Please try again later.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // Features data
   const features = [
@@ -50,14 +115,14 @@ export const LaunchPage = () => {
 
   // Carousel images data
   const carouselItems = [
-    { src: "/images/live-orders.jpg", caption: "Live Orders" },
-    { src: "/images/customer-order.jpg", caption: "Customer Ordering" },
-    { src: "/images/analytics.jpg", caption: "Analytics Dashboard" },
-    { src: "/images/menu-management.jpg", caption: "Menu Management" },
-    { src: "/images/kitchen-dashboard.jpg", caption: "Kitchen Dashboard" },
-    { src: "/images/waiter-dashboard.jpg", caption: "Waiter Dashboard" },
-    { src: "/images/help-request.jpg", caption: "Help Requests" },
-    { src: "/images/qr-order.jpg", caption: "QR Code Ordering" },
+    { src: LiveOrder, caption: "Live Orders" },
+    { src: CustomerOrderPic, caption: "Customer Ordering" },
+    { src: AnalyticsDashboard, caption: "Analytics Dashboard" },
+    { src: MenuManagementPic, caption: "Menu Management" },
+    { src: KitchenDashboard, caption: "Kitchen Dashboard" },
+    { src: WaiterDashboard, caption: "Waiter Dashboard" },
+    { src: HelpRequestPic, caption: "Help Requests" },
+    { src: QrCodePic, caption: "QR Code Ordering" },
   ];
 
   return (
@@ -98,7 +163,7 @@ export const LaunchPage = () => {
             </motion.div>
 
             <div className="hidden md:flex items-center space-x-8">
-              {["Features", "How It Works", "Demo and Media", "Contact Us"].map(
+              {["Features", "How It Works", "Media", "Contact Us"].map(
                 (item) => (
                   <motion.a
                     key={item}
@@ -454,7 +519,7 @@ export const LaunchPage = () => {
         </div>
       </section>
 
-      <section id="demo-media" className="py-28 px-4 relative z-10">
+      <section id="media" className="py-28 px-4 relative z-10">
         <div className="max-w-7xl mx-auto">
           <motion.div
             className="text-center mb-16"
@@ -467,8 +532,8 @@ export const LaunchPage = () => {
               See DineFlow in Action
             </h2>
             <p className="text-gray-400 max-w-2xl mx-auto">
-              Swipe through our features and see how DineFlow transforms your
-              restaurant.
+              Browse through our media gallery to see how DineFlow transforms
+              your restaurant.
             </p>
           </motion.div>
 
@@ -539,30 +604,137 @@ export const LaunchPage = () => {
             </p>
           </motion.div>
 
-          <form className="max-w-2xl mx-auto bg-white/5 p-8 rounded-2xl border border-white/10 backdrop-blur-lg">
+          <form
+            onSubmit={handleSubmit}
+            className="max-w-2xl mx-auto bg-white/5 p-8 rounded-2xl border border-white/10 backdrop-blur-lg"
+          >
+            {submitStatus && (
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`mb-6 p-4 rounded-lg ${
+                  submitStatus.success
+                    ? "bg-green-500/20 text-green-400"
+                    : "bg-red-500/20 text-red-400"
+                }`}
+              >
+                {submitStatus.message}
+              </motion.div>
+            )}
+
             <div className="grid grid-cols-1 gap-6">
               <input
                 type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
                 placeholder="Your Name"
-                className="p-4 bg-white/10 rounded-lg text-white placeholder-gray-300 focus:outline-none"
+                className="p-4 bg-white/10 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                required
               />
               <input
                 type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
                 placeholder="Your Email"
-                className="p-4 bg-white/10 rounded-lg text-white placeholder-gray-300 focus:outline-none"
+                className="p-4 bg-white/10 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                required
               />
               <textarea
+                name="message"
+                value={formData.message}
+                onChange={handleInputChange}
                 placeholder="Your Message"
                 rows="5"
-                className="p-4 bg-white/10 rounded-lg text-white placeholder-gray-300 focus:outline-none"
+                className="p-4 bg-white/10 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                required
               ></textarea>
-              <button className="px-8 py-3.5 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 font-medium transition-all shadow-lg shadow-blue-500/30">
-                Send Message
-              </button>
+              <motion.button
+                type="submit"
+                className="px-8 py-3.5 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 font-medium transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <svg
+                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Sending...
+                  </>
+                ) : (
+                  "Send Message"
+                )}
+              </motion.button>
             </div>
           </form>
         </div>
       </section>
+      <footer className="bg-[#0a0e27] border-t border-white/10 py-12 px-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="flex items-center space-x-2 mb-6 md:mb-0">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 flex items-center justify-center">
+                <span className="font-bold text-white">DF</span>
+              </div>
+              <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                DineFlow
+              </h1>
+            </div>
+
+            <div className="flex flex-col items-center md:items-end space-y-2">
+              <div className="flex space-x-6">
+                <a
+                  href="#features"
+                  className="text-gray-400 hover:text-white transition"
+                >
+                  Features
+                </a>
+                <a
+                  href="#how-it-works"
+                  className="text-gray-400 hover:text-white transition"
+                >
+                  How It Works
+                </a>
+                <a
+                  href="#media"
+                  className="text-gray-400 hover:text-white transition"
+                >
+                  Media
+                </a>
+                <a
+                  href="#contact-us"
+                  className="text-gray-400 hover:text-white transition"
+                >
+                  Contact
+                </a>
+              </div>
+              <p className="text-gray-500 text-sm mt-4">
+                © {new Date().getFullYear()} DineFlow. All rights reserved.
+              </p>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
