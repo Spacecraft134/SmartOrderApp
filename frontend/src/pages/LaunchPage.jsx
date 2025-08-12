@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 export const LaunchPage = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(0);
   const navigate = useNavigate();
 
   // Handle scroll effect for navbar
@@ -24,7 +25,7 @@ export const LaunchPage = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Features data (added two more features)
+  // Features data
   const features = [
     {
       title: "Real-Time Order Management",
@@ -45,6 +46,18 @@ export const LaunchPage = () => {
       icon: "📈",
       color: "from-amber-500 to-orange-500",
     },
+  ];
+
+  // Carousel images data
+  const carouselItems = [
+    { src: "/images/live-orders.jpg", caption: "Live Orders" },
+    { src: "/images/customer-order.jpg", caption: "Customer Ordering" },
+    { src: "/images/analytics.jpg", caption: "Analytics Dashboard" },
+    { src: "/images/menu-management.jpg", caption: "Menu Management" },
+    { src: "/images/kitchen-dashboard.jpg", caption: "Kitchen Dashboard" },
+    { src: "/images/waiter-dashboard.jpg", caption: "Waiter Dashboard" },
+    { src: "/images/help-request.jpg", caption: "Help Requests" },
+    { src: "/images/qr-order.jpg", caption: "QR Code Ordering" },
   ];
 
   return (
@@ -373,7 +386,6 @@ export const LaunchPage = () => {
                 title: "Instant Sign Up",
                 description:
                   "30-second registration with no credit card required",
-
                 color: "from-blue-500/10 to-blue-700/10",
               },
               {
@@ -381,7 +393,6 @@ export const LaunchPage = () => {
                 title: "Menu Customization",
                 description:
                   "Upload your menu with photos, prices, and modifiers",
-
                 color: "from-purple-500/10 to-purple-700/10",
               },
               {
@@ -456,20 +467,56 @@ export const LaunchPage = () => {
               See DineFlow in Action
             </h2>
             <p className="text-gray-400 max-w-2xl mx-auto">
-              Watch our demo to discover how DineFlow can streamline your
-              restaurant operations.
+              Swipe through our features and see how DineFlow transforms your
+              restaurant.
             </p>
           </motion.div>
 
-          <div className="aspect-w-16 aspect-h-9 bg-gray-800 rounded-xl overflow-hidden shadow-lg">
-            <iframe
-              className="w-full h-full"
-              src=""
-              title="DineFlow Demo Video"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            ></iframe>
+          {/* Carousel */}
+          <div className="relative overflow-hidden">
+            <motion.div
+              className="flex transition-transform duration-500"
+              style={{
+                transform: `translateX(-${activeIndex * 100}%)`,
+              }}
+            >
+              {carouselItems.map((item, i) => (
+                <div key={i} className="min-w-full flex-shrink-0 relative">
+                  <img
+                    src={item.src}
+                    alt={item.caption}
+                    className="w-full h-96 object-cover rounded-xl"
+                  />
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded-lg text-white text-sm">
+                    {item.caption}
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+
+            {/* Prev Button */}
+            <button
+              onClick={() =>
+                setActiveIndex((prev) =>
+                  prev > 0 ? prev - 1 : carouselItems.length - 1
+                )
+              }
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-3 rounded-full hover:bg-black/70 transition"
+            >
+              ◀
+            </button>
+
+            {/* Next Button */}
+            <button
+              onClick={() =>
+                setActiveIndex((prev) =>
+                  prev < carouselItems.length - 1 ? prev + 1 : 0
+                )
+              }
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-3 rounded-full hover:bg-black/70 transition"
+            >
+              ▶
+            </button>
           </div>
         </div>
       </section>

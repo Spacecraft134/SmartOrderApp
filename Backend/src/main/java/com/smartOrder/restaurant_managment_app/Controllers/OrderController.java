@@ -24,9 +24,9 @@ import com.smartOrder.restaurant_managment_app.Models.Stats;
 import com.smartOrder.restaurant_managment_app.WebSockets.OrderWebSocket;
 import com.smartOrder.restaurant_managment_app.repository.OrderRepository;
 import com.smartOrder.restaurant_managment_app.repository.StatsSummaryRepository;
-import com.smartOrder.restaurant_managment_app.services.BusyHourService;
 import com.smartOrder.restaurant_managment_app.services.SaleByCategoryService;
 import com.smartOrder.restaurant_managment_app.services.SalesPerformanceService;
+import com.smartOrder.restaurant_managment_app.services.StatsCalculationService;
 import com.smartOrder.restaurant_managment_app.services.TopSellingItemsService;
 
 @RestController
@@ -43,8 +43,7 @@ public class OrderController {
     @Autowired
     private OrderWebSocket orderWebSocket;
     
-    @Autowired
-    private BusyHourService busyHourService;
+   
     
    @Autowired
    private TopSellingItemsService topSellingItemsService;
@@ -57,6 +56,9 @@ public class OrderController {
    
    @Autowired
    private TableController tableController;
+   
+   @Autowired
+   private StatsCalculationService statsCalculationService;
    
 
     // Wrapper class for websocket events
@@ -76,22 +78,39 @@ public class OrderController {
         public Order getOrder() { return order; }
         public void setOrder(Order order) { this.order = order; }
     }
-
-    // Create order
     @PostMapping()
     public Order createNewOrder(@RequestBody Order order) {
-      tableController.startSession(order.getTableNumber());
+        tableController.startSession(order.getTableNumber());
         order.setTime(LocalDateTime.now());
         order.setStatusOfOrder("WAITING_FOR_CONFIRMATION");
-        if (order.getItems() != null) {
+        
+        // Calculate total amount if not provided
+        if (order.getTotalAmount() == null && order.getItems() != null) {
+            double total = 0.0;
+            for (OrderedItems item : order.getItems()) {
+                item.setOrder(order);
+                // Get price from menu item, not from ordered item
+                if (item.getMenuItem() != null && item.getQuantity() > 0) {
+                    double price = item.getMenuItem().getPrice();
+                    total += price * item.getQuantity();
+                }
+            }
+            // Convert double to Long (assuming the amount is stored as cents or as a long)
+            order.setTotalAmount((long) Math.round(total * 100)); // Convert to cents
+        } else if (order.getItems() != null) {
+            // Still need to set the order reference for each item
             for (OrderedItems item : order.getItems()) {
                 item.setOrder(order);
             }
         }
 
         Order saved = orderRepo.save(order);
-        orderWebSocket.sendOrderUpdateToAll(saved, "UPDATE");  
-
+        
+        // Calculate and send updated stats
+        Stats updatedStats = statsCalculationService.calculateStatsFromData(LocalDate.now());
+        orderWebSocket.sendStatsUpdate(updatedStats);
+        
+        orderWebSocket.sendOrderUpdateToAll(saved, "UPDATE");
         return saved;
     }
 
@@ -238,36 +257,7 @@ public class OrderController {
       return statsSummaryRepo.findByDate(date).orElse(new Stats()); 
     }
     
-    @GetMapping("/busy-hours/{date}")
-    public Map<String, Object> getBusyHourStats(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-      Map<Integer, Long> actual = busyHourService.calculateActualOrdersByHour(date);
-      Map<Integer, Double> predicted = busyHourService.calculatePredictedOrdersByHour();
-
-     
-      Set<Integer> allHours = new TreeSet<>();
-      allHours.addAll(actual.keySet());
-      allHours.addAll(predicted.keySet());
-
-      List<String> labels = allHours.stream()
-              .sorted()
-              .map(hour -> String.format("%02d:00", hour))
-              .toList();
-
-      List<Long> actualValues = allHours.stream()
-              .map(hour -> actual.getOrDefault(hour, 0L))
-              .toList();
-
-      List<Double> predictedValues = allHours.stream()
-              .map(hour -> predicted.getOrDefault(hour, 0.0))
-              .toList();
-
-      Map<String, Object> response = new HashMap<>();
-      response.put("labels", labels);
-      response.put("actual", actualValues);
-      response.put("predicted", predictedValues);
-
-      return response;
-  }
+   
     
     @GetMapping("/top-items/{date}")
     public List<Map<String, Object>> getTopSellingItems(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {

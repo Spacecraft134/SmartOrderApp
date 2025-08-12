@@ -2,6 +2,7 @@ package com.smartOrder.restaurant_managment_app.WebSockets;
 
 import com.smartOrder.restaurant_managment_app.Controllers.OrderController;
 import com.smartOrder.restaurant_managment_app.Models.Order;
+import com.smartOrder.restaurant_managment_app.Models.Stats;
 import java.util.Map;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
@@ -41,4 +42,14 @@ public class OrderWebSocket {
         messagingTemplate.convertAndSend("/topic/session-ended/" + tableNumber,
             Map.of("eventType", "SESSION_ENDED", "tableNumber", tableNumber));
     }
+    
+    public void sendStatsUpdate(Stats stats) {
+      // Make sure all fields are being sent
+      messagingTemplate.convertAndSend("/topic/stats-updates", Map.of(
+          "todaysRevenue", stats.getTodaysRevenue(),
+          "totalOrders", stats.getTotalOrders(),
+          "avgOrderValue", stats.getAvgOrderValue(),
+          "avgPreparationTime", stats.getAvgPreparationTime()
+      ));
+  }
 }
