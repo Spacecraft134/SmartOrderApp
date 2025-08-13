@@ -62,15 +62,15 @@ export function KitchenDashboard() {
   const [userName, setUserName] = useState("Kitchen Staff");
   const playedSoundOrders = useRef(new Set());
 
-  // Better admin view detection
   const isAdminView = React.useMemo(() => {
     return (
       window.location.pathname.includes("admin") ||
-      window.parent !== window || // In iframe/modal
+      window.parent !== window ||
       document.referrer.includes("admin")
     );
   }, []);
 
+  // Audio initialization
   useEffect(() => {
     audioRef.current = new Audio(notificationSound);
     audioRef.current.load();
@@ -83,9 +83,9 @@ export function KitchenDashboard() {
     };
   }, []);
 
+  // User initialization
   useEffect(() => {
     if (isAdminView) {
-      // For admin view, get admin info
       const userData = localStorage.getItem("userData");
       if (userData) {
         try {
@@ -94,18 +94,14 @@ export function KitchenDashboard() {
         } catch (e) {
           setUserName("Admin");
         }
-      } else {
-        setUserName("Admin");
       }
     } else {
-      // For normal kitchen staff access
       const storedUserData = localStorage.getItem("employeeData");
       if (storedUserData) {
         try {
           const { name } = JSON.parse(storedUserData);
           setUserName(name || "Kitchen Staff");
         } catch (e) {
-          console.error("Failed to parse user data:", e);
           setUserName("Kitchen Staff");
         }
       } else {
@@ -117,66 +113,52 @@ export function KitchenDashboard() {
   const playNotification = () => {
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(() => {
+      audioRef.current.play().catch((e) => {
+        console.error("Audio play failed:", e);
         toast.info("New order received!");
       });
     }
   };
 
   const getAuthToken = () => {
-    if (isAdminView) {
-      return localStorage.getItem("token");
-    } else {
-      return localStorage.getItem("employeeToken");
-    }
+    return isAdminView
+      ? localStorage.getItem("token")
+      : localStorage.getItem("employeeToken");
   };
 
   const fetchOrders = async () => {
     try {
       setIsLoading(true);
       const token = getAuthToken();
+      if (!token) throw new Error("No authentication token found");
 
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
-
-      // Use the proper kitchen endpoints instead of generic orders
-      const [pendingResponse, inProgressResponse] = await Promise.all([
+      const [pending, inProgress] = await Promise.all([
         api
           .get("/api/orders/pending", {
             headers: { Authorization: `Bearer ${token}` },
           })
-          .catch((err) => ({ data: [] })), // Handle errors gracefully
+          .then((res) => res.data || [])
+          .catch(() => []),
         api
           .get("/api/orders/in-progress", {
             headers: { Authorization: `Bearer ${token}` },
           })
-          .catch((err) => ({ data: [] })),
+          .then((res) => res.data || [])
+          .catch(() => []),
       ]);
 
-      const pendingOrders = (pendingResponse.data || [])
+      const processedOrders = [...pending, ...inProgress]
         .map(processOrderData)
-        .filter(Boolean);
-      const inProgressOrders = (inProgressResponse.data || [])
-        .map(processOrderData)
-        .filter(Boolean);
+        .filter(Boolean)
+        .sort((a, b) => new Date(b.time) - new Date(a.time));
 
-      // Combine and sort by time (newest first)
-      const allOrders = [...pendingOrders, ...inProgressOrders].sort(
-        (a, b) => new Date(b.time) - new Date(a.time)
-      );
-
-      setOrders(allOrders);
+      setOrders(processedOrders);
     } catch (error) {
       console.error("Failed to fetch orders:", error);
       toast.error("Failed to load orders");
 
       if (error.response?.status === 401 || error.response?.status === 403) {
-        if (isAdminView) {
-          toast.error("Admin authentication required");
-        } else {
-          navigate("/employee/login");
-        }
+        if (!isAdminView) navigate("/employee/login");
       }
     } finally {
       setIsLoading(false);
@@ -190,66 +172,91 @@ export function KitchenDashboard() {
     const stompClient = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+      debug: (str) => console.log("STOMP:", str),
       onConnect: () => {
-        console.log("Kitchen Dashboard WebSocket connected");
-        stompClient.subscribe("/topic/orders", (message) => {
+        console.log("Kitchen WebSocket connected");
+
+        // Main kitchen orders channel
+        stompClient.subscribe("/topic/kitchen-orders", (message) => {
           if (!message?.body) return;
 
           try {
-            const orderEvent = JSON.parse(message.body);
-            const order = processOrderData(orderEvent.order);
-            const eventType = orderEvent.eventType;
-
+            const event = JSON.parse(message.body);
+            const order = processOrderData(event.order);
             if (!order) return;
 
             setOrders((prev) => {
-              // Remove order if it's completed, ready, or deleted
-              if (
-                eventType === "DELETE" ||
-                order.statusOfOrder === "READY" ||
-                order.statusOfOrder === "COMPLETED"
-              ) {
-                return prev.filter((o) => o.id !== order.id);
-              }
+              // Handle different event types
+              switch (event.eventType) {
+                case "DELETE":
+                case "COMPLETED":
+                  return prev.filter((o) => o.id !== order.id);
 
-              // Only include orders that are pending or in progress
-              if (
-                order.statusOfOrder !== "WAITING_FOR_CONFIRMATION" &&
-                order.statusOfOrder !== "IN_PROGRESS"
-              ) {
-                return prev.filter((o) => o.id !== order.id);
-              }
+                case "NEW_ORDER":
+                  if (!playedSoundOrders.current.has(order.id)) {
+                    playNotification();
+                    playedSoundOrders.current.add(order.id);
+                    toast.success(`New order from Table ${order.tableNumber}!`);
+                  }
+                  return [order, ...prev].sort(
+                    (a, b) => new Date(b.time) - new Date(a.time)
+                  );
 
-              const existingIndex = prev.findIndex((o) => o.id === order.id);
-              if (existingIndex >= 0) {
-                const updated = [...prev];
-                updated[existingIndex] = order;
-                return updated.sort(
-                  (a, b) => new Date(b.time) - new Date(a.time)
-                );
-              } else {
-                // New order - play notification
-                if (!playedSoundOrders.current.has(order.id)) {
-                  playNotification();
-                  playedSoundOrders.current.add(order.id);
-                  toast.success(`New order from Table ${order.tableNumber}!`);
-                }
-                return [...prev, order].sort(
-                  (a, b) => new Date(b.time) - new Date(a.time)
-                );
+                case "STATUS_CHANGE":
+                  const existingIndex = prev.findIndex(
+                    (o) => o.id === order.id
+                  );
+                  if (existingIndex >= 0) {
+                    const updated = [...prev];
+                    updated[existingIndex] = order;
+                    return updated.sort(
+                      (a, b) => new Date(b.time) - new Date(a.time)
+                    );
+                  }
+                  return prev;
+
+                default:
+                  return prev;
               }
             });
           } catch (error) {
-            console.error("Failed to process WebSocket message:", error);
+            console.error("Failed to process kitchen order:", error);
+          }
+        });
+
+        // Dedicated new orders channel (simpler payload)
+        stompClient.subscribe("/topic/new-orders", (message) => {
+          if (!message?.body) return;
+
+          try {
+            const order = JSON.parse(message.body);
+            if (!playedSoundOrders.current.has(order.id)) {
+              playNotification();
+              playedSoundOrders.current.add(order.id);
+              toast.success(`New order from Table ${order.tableNumber}!`);
+
+              setOrders((prev) => {
+                if (!prev.some((o) => o.id === order.id)) {
+                  return [processOrderData(order), ...prev].sort(
+                    (a, b) => new Date(b.time) - new Date(a.time)
+                  );
+                }
+                return prev;
+              });
+            }
+          } catch (error) {
+            console.error("Failed to process new order:", error);
           }
         });
       },
       onStompError: (frame) => {
-        console.error("Kitchen WebSocket error:", frame);
+        console.error("WebSocket error:", frame);
         toast.error("Connection error. Trying to reconnect...");
       },
-      onWebSocketClose: () => {
-        console.log("Kitchen WebSocket connection closed");
+      onDisconnect: () => {
+        console.log("WebSocket disconnected");
       },
     });
 
@@ -257,24 +264,29 @@ export function KitchenDashboard() {
     clientRef.current = stompClient;
 
     return () => {
-      clientRef.current?.deactivate();
+      if (clientRef.current) {
+        clientRef.current.deactivate();
+      }
     };
   }, [isAdminView]);
-
   const startOrderProgress = async (id) => {
     try {
       const token = getAuthToken();
       if (!token) {
-        throw new Error("No authentication token found");
+        toast.error("Session expired. Please login again.");
+        if (!isAdminView) navigate("/employee/login");
+        return;
       }
 
+      setIsLoading(true);
       await api.put(`/api/orders/${id}/progress`, null, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
 
       toast.success("Order started!");
-
-      // Update local state
       setOrders((prev) =>
         prev.map((order) =>
           order.id === id ? { ...order, statusOfOrder: "IN_PROGRESS" } : order
@@ -282,43 +294,33 @@ export function KitchenDashboard() {
       );
     } catch (error) {
       console.error("Failed to start order:", error);
-      toast.error("Failed to start order");
+      toast.error(error.response?.data?.message || "Failed to start order");
 
       if (error.response?.status === 401 || error.response?.status === 403) {
-        if (isAdminView) {
-          toast.error("Admin authentication required");
-        } else {
-          navigate("/employee/login");
-        }
+        if (!isAdminView) navigate("/employee/login");
       }
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const markOrderReady = async (id) => {
     try {
       const token = getAuthToken();
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
+      if (!token) throw new Error("No authentication token found");
 
       await api.put(`/api/orders/${id}/ready`, null, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       toast.success("Order marked READY for pickup!");
-
-      // Remove from kitchen dashboard
       setOrders((prev) => prev.filter((order) => order.id !== id));
     } catch (error) {
       console.error("Failed to mark order ready:", error);
       toast.error("Failed to mark order ready");
 
       if (error.response?.status === 401 || error.response?.status === 403) {
-        if (isAdminView) {
-          toast.error("Admin authentication required");
-        } else {
-          navigate("/employee/login");
-        }
+        if (!isAdminView) navigate("/employee/login");
       }
     }
   };
@@ -353,13 +355,10 @@ export function KitchenDashboard() {
         localStorage.removeItem("employeeData");
         localStorage.removeItem("employeeToken");
         navigate("/employee/login");
+      } else if (window.parent !== window) {
+        window.parent.postMessage({ action: "closeModal" }, "*");
       } else {
-        // For admin view, just close modal or redirect
-        if (window.parent !== window) {
-          window.parent.postMessage({ action: "closeModal" }, "*");
-        } else {
-          navigate("/admin/dashboard");
-        }
+        navigate("/admin/dashboard");
       }
     } catch (error) {
       console.error("Logout failed:", error);
@@ -367,13 +366,7 @@ export function KitchenDashboard() {
     }
   };
 
-  const getPendingOrders = () =>
-    orders.filter(
-      (order) => order.statusOfOrder === "WAITING_FOR_CONFIRMATION"
-    );
-  const getInProgressOrders = () =>
-    orders.filter((order) => order.statusOfOrder === "IN_PROGRESS");
-
+  // Render UI
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 w-full">
       <header className="bg-gradient-to-r from-blue-600 to-blue-600 text-white py-8 px-6 shadow-xl w-full">
@@ -406,10 +399,7 @@ export function KitchenDashboard() {
               {isLoading ? "Loading..." : `Kitchen Queue (${orders.length})`}
             </h2>
             <button
-              onClick={() => {
-                menuItemCache.clear();
-                fetchOrders();
-              }}
+              onClick={fetchOrders}
               className="flex items-center gap-1 text-blue-600 hover:text-blue-800 px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors"
               disabled={isLoading}
             >

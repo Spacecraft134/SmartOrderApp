@@ -31,13 +31,15 @@ export function WaiterDashboard() {
 
   const navigate = useNavigate();
   const clientRef = useRef(null);
+  const subscriptionsRef = useRef({});
   const audioRef = useRef(null);
+  const reconnectAttemptsRef = useRef(0);
 
-  // Check if this is an admin view (either from path or query param)
   const isAdminView =
     window.location.pathname.includes("/admin-view") ||
     new URLSearchParams(window.location.search).has("admin-view");
 
+  // Initialize audio
   useEffect(() => {
     audioRef.current = new Audio(notificationSound);
     audioRef.current.load();
@@ -49,15 +51,14 @@ export function WaiterDashboard() {
     };
   }, []);
 
+  // Initialize user data
   useEffect(() => {
-    // Admin view handling - absolutely no localStorage modifications
     if (isAdminView) {
       setUserName("Admin View Mode");
       setUserRole("ADMIN_VIEW");
       return;
     }
 
-    // Regular waiter handling - only runs when not in admin view
     const employeeData = localStorage.getItem("employeeData");
     if (employeeData) {
       try {
@@ -72,27 +73,19 @@ export function WaiterDashboard() {
     }
   }, [isAdminView]);
 
-  const playNotification = () => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(() => {
-        toast.info("New help request or order received!");
-      });
-    }
-  };
-
+  // Fetch initial data
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [requests, orders, tables] = await Promise.all([
+      const [requestsRes, ordersRes, tablesRes] = await Promise.all([
         api.get("/api/help-requests/all-active-request"),
         api.get("/api/orders/pending"),
         api.get("/api/tables/active"),
       ]);
 
-      setRequests(requests.data);
-      setOrders(orders.data);
-      setActiveTables(tables.data);
+      setRequests(requestsRes.data);
+      setOrders(ordersRes.data);
+      setActiveTables(tablesRes.data);
     } catch (error) {
       console.error("Failed to fetch data:", error);
       toast.error(error.response?.data?.message || "Failed to load data");
@@ -105,112 +98,198 @@ export function WaiterDashboard() {
     fetchData();
   }, []);
 
+  // WebSocket connection and subscriptions
   useEffect(() => {
-    const socket = new SockJS("http://localhost:8080/ws");
-    const stompClient = new Client({
-      webSocketFactory: () => socket,
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
-      onConnect: () => {
-        stompClient.subscribe("/topic/help-requests", (message) => {
-          if (!message?.body) return;
-          try {
-            const event = JSON.parse(message.body);
+    if (loading) return;
 
-            if (event.eventType === "DELETE") {
-              setRequests((prev) =>
-                prev.filter((req) => req.id !== event.requestId)
-              );
-              return;
-            }
+    const connectWebSocket = () => {
+      const socket = new SockJS("http://localhost:8080/ws");
+      const stompClient = new Client({
+        webSocketFactory: () => socket,
+        reconnectDelay: 5000,
+        heartbeatIncoming: 4000,
+        heartbeatOutgoing: 4000,
+        debug: (str) => console.log("STOMP:", str),
+        onConnect: () => {
+          console.log("WebSocket connected");
+          reconnectAttemptsRef.current = 0;
+          setupSubscriptions(stompClient);
+        },
+        onStompError: (frame) => {
+          console.error("STOMP error:", frame.headers.message);
+          handleReconnect();
+        },
+        onDisconnect: () => {
+          console.log("WebSocket disconnected");
+          handleReconnect();
+        },
+      });
 
-            const updatedRequest = event.request || event;
-            setRequests((prev) => {
-              const index = prev.findIndex((r) => r.id === updatedRequest.id);
-              if (index >= 0) {
-                const copy = [...prev];
-                copy[index] = updatedRequest;
-                return copy;
-              } else {
-                playNotification();
-                return [...prev, updatedRequest];
-              }
-            });
-          } catch (err) {
-            console.error("Error parsing help request message", err);
+      stompClient.activate();
+      clientRef.current = stompClient;
+
+      return () => {
+        if (clientRef.current) {
+          clientRef.current.deactivate();
+        }
+      };
+    };
+
+    const handleReconnect = () => {
+      if (reconnectAttemptsRef.current < 5) {
+        reconnectAttemptsRef.current += 1;
+        const delay = Math.min(1000 * reconnectAttemptsRef.current, 10000);
+        console.log(`Reconnecting in ${delay}ms...`);
+        setTimeout(connectWebSocket, delay);
+      } else {
+        console.error("Max reconnection attempts reached");
+        toast.error("Connection lost. Please refresh the page.");
+      }
+    };
+
+    const setupSubscriptions = (stompClient) => {
+      // Clear existing subscriptions
+      Object.values(subscriptionsRef.current).forEach((sub) =>
+        sub?.unsubscribe()
+      );
+      subscriptionsRef.current = {};
+
+      // Help requests
+      subscriptionsRef.current.helpRequests = stompClient.subscribe(
+        "/topic/help-requests",
+        (message) => handleHelpRequestUpdate(message)
+      );
+
+      // Waiter orders
+      subscriptionsRef.current.waiterOrders = stompClient.subscribe(
+        "/topic/waiter-orders",
+        (message) => handleWaiterOrderUpdate(message)
+      );
+
+      // Active tables updates
+      subscriptionsRef.current.activeTables = stompClient.subscribe(
+        "/topic/active-tables",
+        (message) => handleActiveTablesUpdate(message)
+      );
+
+      // Subscribe to each active table's order updates
+      activeTables.forEach((tableNumber) => {
+        const topic = `/topic/orders/${tableNumber}`;
+        subscriptionsRef.current[`table_${tableNumber}`] =
+          stompClient.subscribe(topic, (message) =>
+            handleTableOrderUpdate(tableNumber, message)
+          );
+      });
+    };
+
+    const handleHelpRequestUpdate = (message) => {
+      if (!message?.body) return;
+      try {
+        const event = JSON.parse(message.body);
+        console.log("Help request update:", event);
+
+        setRequests((prev) => {
+          if (event.eventType === "DELETE") {
+            return prev.filter((req) => req.id !== event.requestId);
+          }
+
+          const updatedRequest = event.request || event;
+          const existingIndex = prev.findIndex(
+            (r) => r.id === updatedRequest.id
+          );
+
+          if (existingIndex >= 0) {
+            const updated = [...prev];
+            updated[existingIndex] = updatedRequest;
+            return updated;
+          } else {
+            playNotification();
+            toast.info(
+              `New help request from Table ${updatedRequest.tableNumber}`
+            );
+            return [...prev, updatedRequest];
           }
         });
+      } catch (err) {
+        console.error("Error parsing help request:", err);
+      }
+    };
 
-        stompClient.subscribe("/topic/orders", (message) => {
-          if (!message?.body) return;
-          try {
-            const orderEvent = JSON.parse(message.body);
-            const order = orderEvent.order;
-            const eventType = orderEvent.eventType;
+    const handleWaiterOrderUpdate = (message) => {
+      if (!message?.body) return;
+      try {
+        const event = JSON.parse(message.body);
+        console.log("Waiter order update:", event);
 
-            setOrders((prev) => {
-              if (
-                eventType === "DELETE" ||
-                order.statusOfOrder === "IN_PROGRESS"
-              ) {
-                return prev.filter((o) => o.id !== order.id);
-              }
+        if (event.eventType === "READY") {
+          setOrders((prev) => prev.filter((o) => o.id !== event.order.id));
+          playNotification();
+          toast.success(`Order for Table ${event.order.tableNumber} is ready!`);
+        }
+      } catch (err) {
+        console.error("Error parsing waiter order:", err);
+      }
+    };
 
-              if (order.statusOfOrder !== "WAITING_FOR_CONFIRMATION") {
-                return prev;
-              }
+    const handleActiveTablesUpdate = (message) => {
+      if (!message?.body) return;
+      try {
+        const event = JSON.parse(message.body);
+        console.log("Active tables update:", event);
 
-              const index = prev.findIndex((o) => o.id === order.id);
-              if (index >= 0) {
-                const updated = [...prev];
-                updated[index] = order;
-                return updated;
-              } else {
-                playNotification();
-                return [...prev, order];
-              }
-            });
-          } catch (err) {
-            console.error("Error parsing order message", err);
-          }
+        if (event.eventType === "SESSION_ENDED") {
+          setActiveTables((prev) =>
+            prev.filter((t) => t !== event.tableNumber)
+          );
+          toast.info(`Table ${event.tableNumber} session ended`);
+        } else if (event.eventType === "SESSION_STARTED") {
+          setActiveTables((prev) => [...new Set([...prev, event.tableNumber])]);
+        }
+      } catch (err) {
+        console.error("Error parsing active tables update:", err);
+      }
+    };
+
+    const handleTableOrderUpdate = async (tableNumber, message) => {
+      if (!message?.body) return;
+
+      try {
+        const event = JSON.parse(message.body);
+        console.log("Order update:", event);
+
+        // Immediately refresh orders data
+        const response = await api.get("/api/orders/pending");
+        setOrders(response.data);
+
+        // Show notification if it's a new order
+        if (
+          event.eventType !== "STATUS_CHANGE" &&
+          event.order?.statusOfOrder === "WAITING_FOR_CONFIRMATION"
+        ) {
+          playNotification();
+          toast.info(`New order from Table ${event.order.tableNumber}`);
+        }
+      } catch (err) {
+        console.error(`Error handling order update:`, err);
+      }
+    };
+    const playNotification = () => {
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => {
+          toast.info("New notification!");
         });
+      }
+    };
 
-        stompClient.subscribe("/topic/active-tables", (message) => {
-          if (!message?.body) return;
-          try {
-            const event = JSON.parse(message.body);
-            if (event.eventType === "SESSION_ENDED") {
-              setActiveTables((prev) =>
-                prev.filter((table) => table !== event.tableNumber)
-              );
-            } else if (event.eventType === "SESSION_STARTED") {
-              setActiveTables((prev) =>
-                prev.includes(event.tableNumber)
-                  ? prev
-                  : [...prev, event.tableNumber]
-              );
-            }
-          } catch (err) {
-            console.error("Error parsing active tables message", err);
-          }
-        });
-      },
-      onStompError: (frame) => {
-        console.error("Broker reported error: " + frame.headers["message"]);
-        console.error("Additional details: " + frame.body);
-      },
-    });
-
-    stompClient.activate();
-    clientRef.current = stompClient;
+    connectWebSocket();
 
     return () => {
       if (clientRef.current) {
         clientRef.current.deactivate();
       }
     };
-  }, []);
+  }, [loading, activeTables]);
 
   const deleteRequest = async (id) => {
     if (isAdminView) {

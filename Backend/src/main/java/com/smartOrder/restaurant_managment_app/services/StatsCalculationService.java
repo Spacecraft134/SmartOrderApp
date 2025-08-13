@@ -1,5 +1,7 @@
 package com.smartOrder.restaurant_managment_app.services;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -12,6 +14,9 @@ import com.smartOrder.restaurant_managment_app.Models.Stats;
 import com.smartOrder.restaurant_managment_app.repository.OrderRepository;
 import com.smartOrder.restaurant_managment_app.repository.StatsSummaryRepository;
 
+/**
+ * Service for calculating daily statistics
+ */
 @Service
 public class StatsCalculationService {
     
@@ -21,66 +26,75 @@ public class StatsCalculationService {
     @Autowired
     private StatsSummaryRepository statsSummaryRepo;
     
+    /**
+     * Calculates and saves daily statistics for given date
+     * Now calculates per-item metrics instead of per-order
+     */
     public Stats calculateStatsFromData(LocalDate date) {
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
-        
         List<Order> orders = orderRepo.findByTimeBetween(startOfDay, endOfDay);
         
         long totalOrders = orders.size();
-        
-        // Calculate total revenue - always calculate from ordered items
-        double totalRevenue = 0.0;
+        BigDecimal totalRevenue = BigDecimal.ZERO;
         double totalPreparationTime = 0.0;
-        int ordersWithPreparationTime = 0;
+        int totalItems = 0; // Count individual items, not orders
+        int itemsWithPreparationTime = 0;
         
         for (Order order : orders) {
-            // Calculate revenue from ordered items
             if (order.getItems() != null && !order.getItems().isEmpty()) {
-                double orderTotal = 0.0;
+                
+                // Calculate revenue and count items
                 for (OrderedItems item : order.getItems()) {
-                    // Get price from the menu item
                     if (item.getMenuItem() != null && item.getQuantity() > 0) {
-                        double price = item.getMenuItem().getPrice();
-                        orderTotal += price * item.getQuantity();
+                        BigDecimal price = BigDecimal.valueOf(item.getMenuItem().getPrice());
+                        BigDecimal quantity = BigDecimal.valueOf(item.getQuantity());
+                        totalRevenue = totalRevenue.add(price.multiply(quantity));
+                        totalItems += item.getQuantity();
                     }
                 }
-                totalRevenue += orderTotal;
-            }
-            
-            // Calculate preparation time
-            if (order.getPreparationTime() != null) {
-                totalPreparationTime += order.getPreparationTime();
-                ordersWithPreparationTime++;
-            } else {
-                // If preparationTime field is null, try to calculate from timestamps
-                if (order.getTime() != null && order.getReadyTime() != null) {
+                
+                // Calculate preparation time per item in this order
+                double orderPrepTime = 0.0;
+                if (order.getPreparationTime() != null) {
+                    orderPrepTime = order.getPreparationTime();
+                } else if (order.getTime() != null && order.getReadyTime() != null) {
                     Duration duration = Duration.between(order.getTime(), order.getReadyTime());
-                    long minutes = duration.toMinutes();
-                    totalPreparationTime += minutes;
-                    ordersWithPreparationTime++;
+                    orderPrepTime = duration.toMinutes();
+                }
+                
+                // Add prep time for each item in this order
+                if (orderPrepTime > 0) {
+                    for (OrderedItems item : order.getItems()) {
+                        if (item.getMenuItem() != null && item.getQuantity() > 0) {
+                            // Multiply prep time by quantity of items
+                            totalPreparationTime += orderPrepTime * item.getQuantity();
+                            itemsWithPreparationTime += item.getQuantity();
+                        }
+                    }
                 }
             }
         }
         
-        // Calculate averages
-        double avgOrderValue = totalOrders == 0 ? 0.0 : totalRevenue / totalOrders;
-        double avgPreparationTime = ordersWithPreparationTime == 0 ? 0.0 : 
-            totalPreparationTime / ordersWithPreparationTime;
+        // Calculate per-item metrics
+        double revenuePerItem = totalItems == 0 ? 0.0 : 
+                totalRevenue.divide(BigDecimal.valueOf(totalItems), 2, RoundingMode.HALF_UP).doubleValue();
         
-        // Find existing stats or create new one
+        double avgPreparationTimePerItem = itemsWithPreparationTime == 0 ? 0.0 :
+                totalPreparationTime / itemsWithPreparationTime;
+        
         Stats summary = statsSummaryRepo.findByDate(date).orElse(new Stats());
         summary.setDate(date);
-        summary.setTodaysRevenue(Math.round(totalRevenue * 100.0) / 100.0); // Round to 2 decimal places
-        summary.setTotalOrders(totalOrders);
-        summary.setAvgOrderValue(Math.round(avgOrderValue * 100.0) / 100.0); // Round to 2 decimal places
-        summary.setAvgPreparationTime(Math.round(avgPreparationTime * 100.0) / 100.0); // Round to 2 decimal places
         
-        System.out.println("Calculated Stats for " + date + ":");
-        System.out.println("Total Orders: " + totalOrders);
-        System.out.println("Total Revenue: " + totalRevenue);
-        System.out.println("Avg Order Value: " + avgOrderValue);
-        System.out.println("Avg Preparation Time: " + avgPreparationTime);
+        // Set total revenue (this should match sum of all items in TopSellingItems)
+        summary.setTodaysRevenue(totalRevenue.setScale(2, RoundingMode.HALF_UP).doubleValue());
+        summary.setTotalOrders(totalOrders);
+        
+        // avgOrderValue now represents revenue per item instead of per order
+        summary.setAvgOrderValue(Math.round(revenuePerItem * 100.0) / 100.0);
+        
+        // avgPreparationTime now represents time per item instead of per order
+        summary.setAvgPreparationTime(Math.round(avgPreparationTimePerItem * 100.0) / 100.0);
         
         return statsSummaryRepo.save(summary);
     }

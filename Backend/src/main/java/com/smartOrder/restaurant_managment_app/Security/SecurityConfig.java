@@ -73,7 +73,7 @@ public class SecurityConfig {
 
                 // SPECIFIC ORDER ENDPOINTS FIRST (most specific patterns first!)
                 .requestMatchers(HttpMethod.GET, "/api/orders/pending").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN", "ROLE_KITCHEN")
-                .requestMatchers(HttpMethod.PUT, "/api/orders/*/progress").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/orders/*/progress").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN", "ROLE_KITCHEN")
                 .requestMatchers(HttpMethod.PUT, "/api/orders/*/ready").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/orders").permitAll() // Allow customers to place orders
                 

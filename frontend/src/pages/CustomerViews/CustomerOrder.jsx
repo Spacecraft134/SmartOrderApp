@@ -15,6 +15,7 @@ import {
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import SockJS from "sockjs-client";
+
 import { Client } from "@stomp/stompjs";
 
 export function CustomerOrder() {
@@ -367,7 +368,7 @@ export function CustomerOrder() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
             <h1 className="text-4xl font-extrabold text-gray-900 mb-2">
-              Welcome to <span className="text-blue-600">RESTAURANT NAME</span>
+              Welcome to <span className="text-blue-600">Kutty leaf</span>
             </h1>
             <p className="text-lg text-gray-600">
               Browse our exquisite menu and place your order

@@ -547,35 +547,8 @@ export default function UserManagement() {
                   >
                     <option value="WAITER">Waiter</option>
                     <option value="KITCHEN">Kitchen Staff</option>
-                    <option value="MANAGER">Manager</option>
                   </select>
                 </div>
-
-                {newUser.role === "MANAGER" && !editingUser && (
-                  <div>
-                    <label className="block text-sm font-medium mb-1">
-                      Restaurant Code <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={newUser.restaurantCode}
-                      onChange={(e) =>
-                        setNewUser({
-                          ...newUser,
-                          restaurantCode: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      required={newUser.role === "MANAGER"}
-                      pattern="[A-Za-z0-9-]{4,20}"
-                      title="4-20 alphanumeric characters"
-                      placeholder="Enter restaurant identifier"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      This code will link the manager to a specific restaurant
-                    </p>
-                  </div>
-                )}
               </div>
 
               <div className="mt-6 flex justify-end space-x-3">

@@ -15,6 +15,7 @@ const SignUpPage = () => {
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [adminExists, setAdminExists] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState({
     score: 0,
     message: "",
@@ -22,25 +23,35 @@ const SignUpPage = () => {
   });
   const navigate = useNavigate();
 
+  // Check if admin exists on component mount
+  useEffect(() => {
+    const checkAdminExists = async () => {
+      try {
+        const response = await api.get("/api/auth/check-admin-exists");
+        if (response.data.exists) {
+          setAdminExists(true);
+        }
+      } catch (err) {
+        console.error("Error checking admin existence:", err);
+      }
+    };
+
+    checkAdminExists();
+  }, []);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
 
-    // Calculate password strength when password changes
     if (name === "password") {
       calculatePasswordStrength(value);
     }
   };
 
-  // Password strength calculator
   const calculatePasswordStrength = (password) => {
     let score = 0;
-
-    // Length check
     if (password.length >= 8) score++;
     if (password.length >= 12) score++;
-
-    // Complexity checks
     if (/[A-Z]/.test(password)) score++;
     if (/[0-9]/.test(password)) score++;
     if (/[^A-Za-z0-9]/.test(password)) score++;
@@ -78,19 +89,16 @@ const SignUpPage = () => {
   };
 
   const validateForm = () => {
-    // Check if passwords match
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
       return false;
     }
 
-    // Check password strength
     if (passwordStrength.score < 3) {
       setError("Password is too weak");
       return false;
     }
 
-    // Check restaurant code format
     if (!/^[A-Za-z0-9\-]{4,20}$/.test(formData.restaurantCode)) {
       setError(
         "Restaurant code must be 4-20 alphanumeric characters or hyphens"
@@ -110,42 +118,44 @@ const SignUpPage = () => {
     setIsLoading(true);
 
     try {
-      const response = await api.post(
-        `/register-admin/${formData.restaurantCode}`,
-        {
-          name: formData.name,
-          username: formData.email,
-          email: formData.email,
-          password: formData.password,
-          restaurantName: formData.restaurantName,
-        }
-      );
+      const response = await api.post("/api/auth/register-admin", {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        restaurantName: formData.restaurantName,
+        restaurantCode: formData.restaurantCode,
+      });
 
-      // Store the received token and user data
-      localStorage.setItem("jwtToken", response.data.token);
-      localStorage.setItem("user", JSON.stringify(response.data.user));
-      localStorage.setItem("restaurantName", response.data.restaurantName);
-
-      toast.success("Registration successful!");
+      toast.success("Admin registration successful!");
       navigate("/admin", {
         state: {
           restaurantName: response.data.restaurantName,
         },
       });
     } catch (err) {
-      const errorMessage =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        "Registration failed";
-      setError(errorMessage);
-      toast.error(errorMessage);
-      console.error("Registration error:", err.response?.data);
+      const errorMessage = err.response?.data?.message || "Registration failed";
+
+      if (err.response?.status === 409) {
+        setAdminExists(true);
+        toast.error(
+          <div>
+            An admin already exists. Please{" "}
+            <Link to="/login" className="underline">
+              log in
+            </Link>{" "}
+            instead.
+          </div>,
+          { autoClose: 5000 }
+        );
+      } else {
+        setError(errorMessage);
+        toast.error(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Password strength indicator component
   const PasswordStrengthIndicator = () => {
     if (!formData.password) return null;
 
@@ -172,6 +182,40 @@ const SignUpPage = () => {
     );
   };
 
+  if (adminExists) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#0a0e27] to-[#0a1129] text-white flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md text-center"
+        >
+          <div className="mx-auto w-16 h-16 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 flex items-center justify-center mb-4">
+            <span className="font-bold text-xl text-white">DF</span>
+          </div>
+          <h1 className="text-3xl font-bold mb-4">Admin Already Registered</h1>
+          <p className="text-gray-300 mb-6">
+            An admin account already exists. Please log in instead.
+          </p>
+          <Link
+            to="/login"
+            className="inline-block py-3 px-6 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 font-medium transition-all shadow-lg shadow-blue-500/20"
+          >
+            Go to Login Page
+          </Link>
+          <div className="mt-4">
+            <Link
+              to="/"
+              className="text-sm text-cyan-400 hover:text-cyan-300 transition"
+            >
+              ← Back to Home Page
+            </Link>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0a0e27] to-[#0a1129] text-white flex items-center justify-center p-4">
       <motion.div
@@ -187,9 +231,9 @@ const SignUpPage = () => {
           >
             <span className="font-bold text-xl text-white">DF</span>
           </motion.div>
-          <h1 className="text-3xl font-bold">Create your account</h1>
+          <h1 className="text-3xl font-bold">Create Admin Account</h1>
           <p className="text-gray-400 mt-2">
-            Get started with DineFlow in minutes
+            Setup your restaurant management system
           </p>
         </div>
 
@@ -239,7 +283,7 @@ const SignUpPage = () => {
                   value={formData.restaurantName}
                   onChange={handleChange}
                   className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
-                  placeholder="restaurant"
+                  placeholder="My Restaurant"
                   required
                 />
               </div>
@@ -256,7 +300,7 @@ const SignUpPage = () => {
                   value={formData.restaurantCode}
                   onChange={handleChange}
                   className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
-                  placeholder="1234"
+                  placeholder="restaurant-123"
                   required
                   pattern="[A-Za-z0-9\-]{4,20}"
                   title="4-20 alphanumeric characters or hyphens"
@@ -334,7 +378,7 @@ const SignUpPage = () => {
               whileHover={!isLoading ? { scale: 1.02 } : {}}
               whileTap={!isLoading ? { scale: 0.98 } : {}}
             >
-              {isLoading ? "Creating Account..." : "Create Account"}
+              {isLoading ? "Creating Admin Account..." : "Create Admin Account"}
             </motion.button>
 
             <div className="text-center text-gray-400 text-sm">

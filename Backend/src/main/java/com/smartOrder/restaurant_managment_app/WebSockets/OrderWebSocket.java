@@ -42,6 +42,13 @@ public class OrderWebSocket {
         messagingTemplate.convertAndSend("/topic/session-ended/" + tableNumber,
             Map.of("eventType", "SESSION_ENDED", "tableNumber", tableNumber));
     }
+    public void notifyNewKitchenOrder(Order order) {
+      messagingTemplate.convertAndSend("/topic/kitchen-orders", 
+          new OrderController.OrderEvent("NEW_ORDER", order));
+      
+      // Also send to simpler channel (optional)
+      messagingTemplate.convertAndSend("/topic/new-orders", order);
+  }
     
     public void sendStatsUpdate(Stats stats) {
       // Make sure all fields are being sent

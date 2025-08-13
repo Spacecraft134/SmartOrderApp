@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import emailjs from "emailjs-com";
+import emailjs from "@emailjs/browser";
 import LiveOrder from "../assets/image.png";
 import CustomerOrderPic from "../assets/Screenshot 2025-08-11 203504.png";
 import AnalyticsDashboard from "../assets/Screenshot 2025-08-11 203604.png";
@@ -25,6 +25,23 @@ export const LaunchPage = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
+  const [showDisclaimer, setShowDisclaimer] = useState(true);
+
+  // EmailJS configuration - these should ideally come from environment variables
+  const emailjsConfig = {
+    serviceId: "service_ynnqzxd",
+    templateId: "template_dr3krud",
+    publicKey: "DgG8mAFoMUh3-Inpl",
+  };
+
+  // Initialize EmailJS
+  useEffect(() => {
+    if (emailjsConfig.publicKey) {
+      emailjs.init(emailjsConfig.publicKey);
+    } else {
+      console.error("EmailJS public key not configured");
+    }
+  }, []);
 
   // Handle scroll effect for navbar
   useEffect(() => {
@@ -52,38 +69,76 @@ export const LaunchPage = () => {
     }));
   };
 
-  // Handle form submission
+  // Handle form submission with EmailJS
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitStatus(null);
 
     try {
-      // Initialize EmailJS (you'll need to create an account and get these credentials)
-      emailjs.init("YOUR_USER_ID"); // Replace with your EmailJS user ID
+      // Validate required fields
+      if (!formData.name || !formData.email || !formData.message) {
+        throw new Error("Please fill all required fields");
+      }
 
       // Send email using EmailJS
-      await emailjs.send(
-        "YOUR_SERVICE_ID", // Replace with your EmailJS service ID
-        "YOUR_TEMPLATE_ID", // Replace with your EmailJS template ID
+      const response = await emailjs.send(
+        emailjsConfig.serviceId,
+        emailjsConfig.templateId,
         {
           from_name: formData.name,
           from_email: formData.email,
           message: formData.message,
-          to_email: "dineflowinc@gmail.com",
         }
       );
 
-      setSubmitStatus({
-        success: true,
-        message: "Message sent successfully! We will get back to you soon.",
-      });
-      setFormData({ name: "", email: "", message: "" });
+      if (response.status === 200) {
+        setSubmitStatus({
+          success: true,
+          message: (
+            <div className="space-y-3">
+              <p className="font-semibold">✅ Message sent successfully!</p>
+              <div className="bg-white/5 p-4 rounded-lg border border-white/20">
+                <p className="text-sm mb-2">Thank you for contacting us!</p>
+                <p className="text-sm">
+                  We've received your message and will respond to you at{" "}
+                  <span className="font-mono bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
+                    {formData.email}
+                  </span>
+                </p>
+              </div>
+              <p className="text-xs text-gray-400">
+                We'll respond within 24 hours!
+              </p>
+            </div>
+          ),
+        });
+
+        // Clear form after successful submission
+        setFormData({ name: "", email: "", message: "" });
+      } else {
+        throw new Error("Email sending failed");
+      }
     } catch (error) {
-      console.error("Error sending email:", error);
+      console.error("EmailJS error:", error);
       setSubmitStatus({
         success: false,
-        message: "Failed to send message. Please try again later.",
+        message: (
+          <div className="space-y-3">
+            <p className="font-semibold">⚠️ Failed to send message</p>
+            <div className="bg-white/5 p-4 rounded-lg border border-white/20">
+              <p className="text-sm mb-2">
+                Please try again or contact us directly at:
+              </p>
+              <p className="font-mono text-cyan-400 bg-cyan-500/20 px-2 py-1 rounded inline-block">
+                dineflowinc@gmail.com
+              </p>
+              <p className="text-xs mt-2 text-gray-400">
+                Error: {error.message}
+              </p>
+            </div>
+          </div>
+        ),
       });
     } finally {
       setIsSubmitting(false);
@@ -236,6 +291,28 @@ export const LaunchPage = () => {
             The all-in-one platform that transforms how restaurants operate.
             Powerful tools designed for the modern dining experience.
           </motion.p>
+
+          {showDisclaimer && (
+            <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-lg relative">
+              {" "}
+              <p className="font-medium">
+                {" "}
+                ⚠️ <strong>Demo / Portfolio Notice:</strong> This application is
+                a demonstration of the Smart Order & Service System I built for
+                my family’s restaurant. All data shown here is{" "}
+                <strong>fake</strong> and this deployment is for portfolio /
+                educational purposes only. It is{" "}
+                <strong>not a live ordering platform</strong>.{" "}
+              </p>{" "}
+              <button
+                className="absolute top-2 right-2 text-yellow-900 hover:text-yellow-700 font-bold"
+                onClick={() => setShowDisclaimer(false)}
+              >
+                {" "}
+                ×{" "}
+              </button>{" "}
+            </div>
+          )}
 
           <motion.div
             className="flex flex-col sm:flex-row justify-center gap-4"
@@ -689,6 +766,7 @@ export const LaunchPage = () => {
           </form>
         </div>
       </section>
+
       <footer className="bg-[#0a0e27] border-t border-white/10 py-12 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center">

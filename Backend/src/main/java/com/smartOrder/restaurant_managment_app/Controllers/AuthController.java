@@ -1,6 +1,7 @@
 package com.smartOrder.restaurant_managment_app.Controllers;
 
 import com.smartOrder.restaurant_managment_app.Models.Users;
+import com.smartOrder.restaurant_managment_app.Models.Users.Role;
 import com.smartOrder.restaurant_managment_app.repository.UserRepo;
 import com.smartOrder.restaurant_managment_app.services.EmailService;
 import com.smartOrder.restaurant_managment_app.services.JWTService;
@@ -9,6 +10,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.apache.catalina.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -93,6 +95,21 @@ public class AuthController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
                 Map.of("message", "Failed to fetch user details: " + e.getMessage())
+            );
+        }
+    }
+    
+    @GetMapping("/check-admin-exists")
+    public ResponseEntity<?> checkAdminExists() {
+        try {
+            boolean adminExists = userRepo.existsByRole(Role.ADMIN);
+            
+            return ResponseEntity.ok().body(
+                Map.of("exists", adminExists)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                Map.of("message", "Error checking admin existence")
             );
         }
     }
