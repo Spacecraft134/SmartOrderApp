@@ -10,13 +10,13 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import org.apache.catalina.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -224,41 +224,6 @@ public class AuthController {
         }
     }
     
-    @DeleteMapping("/terminate-account")
-    public ResponseEntity<?> terminateAccount(@RequestHeader("Authorization") String authHeader) {
-        try {
-            String token = authHeader.substring(7);
-            String username = jwtService.extractUserName(token);
-            
-            if (username == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                    Map.of("success", false, "message", "Invalid token")
-                );
-            }
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-            if (!jwtService.validateToken(token, userDetails)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                    Map.of("success", false, "message", "Token validation failed")
-                );
-            }
-            Users user = userRepo.findByUsername(username);
-            if (user == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                    Map.of("success", false, "message", "User not found")
-                );
-            }
-            userRepo.delete(user);
-            return ResponseEntity.ok().body(
-                Map.of("success", true, "message", "Account terminated successfully")
-            );
-            
-        } catch (Exception e) {
-            System.err.println("Account termination error: " + e.getMessage());
-            e.printStackTrace();
-            
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                Map.of("success", false, "message", "An error occurred while terminating account")
-            );
-        }
-    }
+ 
+    
 }

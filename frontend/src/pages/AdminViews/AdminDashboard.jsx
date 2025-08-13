@@ -9,19 +9,22 @@ import {
   Tooltip,
   Legend,
   ArcElement,
-  PointElement,
-  LineElement,
 } from "chart.js";
 import {
-  FiBell,
-  FiClock,
-  FiShoppingBag,
   FiDollarSign,
+  FiShoppingBag,
   FiTrendingUp,
+  FiClock,
   FiUpload,
-  FiEdit,
 } from "react-icons/fi";
 import { saveAs } from "file-saver";
+import { Dialog, DialogTitle, DialogContent, IconButton } from "@mui/material";
+import { Close } from "@mui/icons-material";
+import { CustomerOrder } from "../CustomerViews/CustomerOrder";
+import { WaiterDashboard } from "../WaiterDashboard";
+import { KitchenDashboard } from "../KitchenDashboard";
+import api from "../Utils/api";
+import { useAuth } from "../Context/AuthContext";
 
 ChartJS.register(
   CategoryScale,
@@ -30,19 +33,8 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  ArcElement,
-  PointElement,
-  LineElement
+  ArcElement
 );
-
-import { Dialog, DialogTitle, DialogContent, IconButton } from "@mui/material";
-import { Close } from "@mui/icons-material";
-
-import { CustomerOrder } from "../CustomerViews/CustomerOrder";
-import { WaiterDashboard } from "../WaiterDashboard";
-import { KitchenDashboard } from "../KitchenDashboard";
-import api from "../Utils/api";
-import { useAuth } from "../Context/AuthContext";
 
 export function AdminDashboard() {
   const { user } = useAuth();
@@ -55,7 +47,6 @@ export function AdminDashboard() {
   const [categorySales, setCategorySales] = useState({ labels: [], data: [] });
   const [error, setError] = useState(null);
 
-  // Modal states
   const [openCustomer, setOpenCustomer] = useState(false);
   const [openWaiter, setOpenWaiter] = useState(false);
   const [openKitchen, setOpenKitchen] = useState(false);
@@ -69,7 +60,6 @@ export function AdminDashboard() {
         setAdminName(userName);
         const today = new Date().toLocaleDateString("en-CA");
 
-        // First check if token exists
         const token = localStorage.getItem("token");
         if (!token) {
           setError("Session expired. Please login again.");
@@ -77,14 +67,12 @@ export function AdminDashboard() {
           return;
         }
 
-        // Use Promise.all for parallel requests
         const [dailyRes, topRes, categoryRes] = await Promise.all([
           api.get(`/api/orders/daily/${today}`),
           api.get(`/api/orders/top-items/${today}`),
           api.get(`/api/orders/category-sales/${today}`),
         ]);
 
-        // Handle responses
         setStatsData({
           todaysRevenue: dailyRes.data?.todaysRevenue || 0,
           totalOrders: dailyRes.data?.totalOrders || 0,
@@ -101,7 +89,6 @@ export function AdminDashboard() {
 
         setError(null);
       } catch (error) {
-        console.error("Initial data fetch error:", error);
         if (error.response?.status === 403 || error.response?.status === 401) {
           setError("Session expired. Please login again.");
           localStorage.removeItem("token");

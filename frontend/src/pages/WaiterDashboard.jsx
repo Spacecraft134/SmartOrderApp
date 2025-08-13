@@ -39,7 +39,6 @@ export function WaiterDashboard() {
     window.location.pathname.includes("/admin-view") ||
     new URLSearchParams(window.location.search).has("admin-view");
 
-  // Initialize audio
   useEffect(() => {
     audioRef.current = new Audio(notificationSound);
     audioRef.current.load();
@@ -51,7 +50,6 @@ export function WaiterDashboard() {
     };
   }, []);
 
-  // Initialize user data
   useEffect(() => {
     if (isAdminView) {
       setUserName("Admin View Mode");
@@ -66,14 +64,12 @@ export function WaiterDashboard() {
         setUserName(name || "Waiter");
         setUserRole(role || "WAITER");
       } catch (e) {
-        console.error("Failed to parse employee data:", e);
         setUserName("Waiter");
         setUserRole("WAITER");
       }
     }
   }, [isAdminView]);
 
-  // Fetch initial data
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -87,7 +83,6 @@ export function WaiterDashboard() {
       setOrders(ordersRes.data);
       setActiveTables(tablesRes.data);
     } catch (error) {
-      console.error("Failed to fetch data:", error);
       toast.error(error.response?.data?.message || "Failed to load data");
     } finally {
       setLoading(false);
@@ -98,7 +93,6 @@ export function WaiterDashboard() {
     fetchData();
   }, []);
 
-  // WebSocket connection and subscriptions
   useEffect(() => {
     if (loading) return;
 
@@ -109,18 +103,14 @@ export function WaiterDashboard() {
         reconnectDelay: 5000,
         heartbeatIncoming: 4000,
         heartbeatOutgoing: 4000,
-        debug: (str) => console.log("STOMP:", str),
         onConnect: () => {
-          console.log("WebSocket connected");
           reconnectAttemptsRef.current = 0;
           setupSubscriptions(stompClient);
         },
-        onStompError: (frame) => {
-          console.error("STOMP error:", frame.headers.message);
+        onStompError: () => {
           handleReconnect();
         },
         onDisconnect: () => {
-          console.log("WebSocket disconnected");
           handleReconnect();
         },
       });
@@ -139,40 +129,33 @@ export function WaiterDashboard() {
       if (reconnectAttemptsRef.current < 5) {
         reconnectAttemptsRef.current += 1;
         const delay = Math.min(1000 * reconnectAttemptsRef.current, 10000);
-        console.log(`Reconnecting in ${delay}ms...`);
         setTimeout(connectWebSocket, delay);
       } else {
-        console.error("Max reconnection attempts reached");
         toast.error("Connection lost. Please refresh the page.");
       }
     };
 
     const setupSubscriptions = (stompClient) => {
-      // Clear existing subscriptions
       Object.values(subscriptionsRef.current).forEach((sub) =>
         sub?.unsubscribe()
       );
       subscriptionsRef.current = {};
 
-      // Help requests
       subscriptionsRef.current.helpRequests = stompClient.subscribe(
         "/topic/help-requests",
         (message) => handleHelpRequestUpdate(message)
       );
 
-      // Waiter orders
       subscriptionsRef.current.waiterOrders = stompClient.subscribe(
         "/topic/waiter-orders",
         (message) => handleWaiterOrderUpdate(message)
       );
 
-      // Active tables updates
       subscriptionsRef.current.activeTables = stompClient.subscribe(
         "/topic/active-tables",
         (message) => handleActiveTablesUpdate(message)
       );
 
-      // Subscribe to each active table's order updates
       activeTables.forEach((tableNumber) => {
         const topic = `/topic/orders/${tableNumber}`;
         subscriptionsRef.current[`table_${tableNumber}`] =
@@ -186,7 +169,6 @@ export function WaiterDashboard() {
       if (!message?.body) return;
       try {
         const event = JSON.parse(message.body);
-        console.log("Help request update:", event);
 
         setRequests((prev) => {
           if (event.eventType === "DELETE") {
@@ -219,7 +201,6 @@ export function WaiterDashboard() {
       if (!message?.body) return;
       try {
         const event = JSON.parse(message.body);
-        console.log("Waiter order update:", event);
 
         if (event.eventType === "READY") {
           setOrders((prev) => prev.filter((o) => o.id !== event.order.id));
@@ -235,7 +216,6 @@ export function WaiterDashboard() {
       if (!message?.body) return;
       try {
         const event = JSON.parse(message.body);
-        console.log("Active tables update:", event);
 
         if (event.eventType === "SESSION_ENDED") {
           setActiveTables((prev) =>
@@ -255,13 +235,9 @@ export function WaiterDashboard() {
 
       try {
         const event = JSON.parse(message.body);
-        console.log("Order update:", event);
-
-        // Immediately refresh orders data
         const response = await api.get("/api/orders/pending");
         setOrders(response.data);
 
-        // Show notification if it's a new order
         if (
           event.eventType !== "STATUS_CHANGE" &&
           event.order?.statusOfOrder === "WAITING_FOR_CONFIRMATION"
@@ -273,6 +249,7 @@ export function WaiterDashboard() {
         console.error(`Error handling order update:`, err);
       }
     };
+
     const playNotification = () => {
       if (audioRef.current) {
         audioRef.current.currentTime = 0;
@@ -298,16 +275,10 @@ export function WaiterDashboard() {
     }
 
     try {
-      const response = await api.delete(`/api/help-requests/${id}`);
+      await api.delete(`/api/help-requests/${id}`);
       toast.success("Request deleted");
       setRequests((prev) => prev.filter((req) => req.id !== id));
     } catch (error) {
-      console.error("Delete error details:", {
-        status: error.response?.status,
-        data: error.response?.data,
-        headers: error.response?.headers,
-      });
-
       toast.error(
         error.response?.data?.message ||
           "Failed to delete request. Please check your authentication."
@@ -325,7 +296,7 @@ export function WaiterDashboard() {
       const token = localStorage.getItem("employeeToken");
       if (!token) throw new Error("No token found");
 
-      const response = await api.put(`/api/orders/${id}/progress`, null, {
+      await api.put(`/api/orders/${id}/progress`, null, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -334,8 +305,6 @@ export function WaiterDashboard() {
       setOrders((prev) => prev.filter((order) => order.id !== id));
       toast.success("Order confirmed and sent to kitchen");
     } catch (error) {
-      console.error("Order confirmation error:", error);
-
       if (error.response?.status === 401) {
         toast.error("Session expired. Please login again.");
         handleLogout();
@@ -391,14 +360,12 @@ export function WaiterDashboard() {
       );
       setActiveTables((prev) => prev.filter((t) => t !== tableNumber));
     } catch (error) {
-      console.error("Process bill error:", error.response?.data);
       toast.error(error.response?.data?.message || "Failed to process bill");
     }
   };
 
   const handleLogout = async () => {
     if (isAdminView) {
-      // Simply close the view without affecting admin session
       window.history.back();
       return;
     }
@@ -409,7 +376,6 @@ export function WaiterDashboard() {
       localStorage.removeItem("employeeToken");
       navigate("/employee/login");
     } catch (error) {
-      console.error("Logout failed:", error);
       toast.error("Logout failed. Please try again.");
     }
   };
@@ -420,7 +386,6 @@ export function WaiterDashboard() {
         isAdminView ? "fixed inset-0 z-50 bg-white" : ""
       }`}
     >
-      {/* Admin View Warning Banner */}
       {isAdminView && (
         <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-white text-center py-3 z-50 shadow-lg flex items-center justify-center">
           <FiAlertTriangle className="mr-2" size={20} />
@@ -467,7 +432,6 @@ export function WaiterDashboard() {
 
       <main className="w-full px-8 py-8 -mt-4">
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 h-full">
-          {/* Left column: Help Requests */}
           <div className="w-full">
             <motion.div
               className="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-gray-200 h-full"
@@ -592,7 +556,6 @@ export function WaiterDashboard() {
             </motion.div>
           </div>
 
-          {/* Right column: Pending Orders */}
           <div className="w-full">
             <div className="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-gray-200 h-full">
               <h2 className="text-2xl font-semibold text-gray-800 mb-6">
@@ -662,7 +625,6 @@ export function WaiterDashboard() {
           </div>
         </div>
 
-        {/* Active Tables Section */}
         <motion.div
           className="mt-8 bg-white rounded-2xl shadow-xl p-8 border border-gray-200"
           initial={{ opacity: 0, y: 20 }}

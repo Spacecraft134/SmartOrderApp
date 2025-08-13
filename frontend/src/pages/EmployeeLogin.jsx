@@ -11,14 +11,14 @@ export default function EmployeeLogin() {
     password: "",
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null); // New state for error messages
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { employeeLogin } = useAuth();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError(null); // Clear previous errors
+    setError(null);
 
     try {
       const { success, error, user } = await employeeLogin({
@@ -27,7 +27,6 @@ export default function EmployeeLogin() {
       });
 
       if (success && user) {
-        // Role-based navigation
         switch (user.role) {
           case "WAITER":
             navigate("/employee/waiter-dashboard");
@@ -40,24 +39,19 @@ export default function EmployeeLogin() {
             break;
         }
       } else {
-        // More detailed error handling
         const errorMessage = error || "Login failed";
         setError(errorMessage);
         toast.error(`Login failed: ${errorMessage}`);
       }
     } catch (error) {
-      console.error("Login Error:", error);
       let errorMessage = "An unexpected error occurred. Please try again.";
 
-      // Handle different types of errors
       if (error.response) {
-        // Server responded with error status
         errorMessage =
           error.response.data?.message ||
           error.response.statusText ||
           "Invalid credentials";
       } else if (error.request) {
-        // Request was made but no response
         errorMessage = "Network error - please check your connection";
       }
 
@@ -93,7 +87,6 @@ export default function EmployeeLogin() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
         >
-          {/* Error message display */}
           {error && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
@@ -127,7 +120,7 @@ export default function EmployeeLogin() {
                 value={credentials.username}
                 onChange={(e) => {
                   setCredentials({ ...credentials, username: e.target.value });
-                  setError(null); // Clear error when user starts typing
+                  setError(null);
                 }}
               />
             </div>
@@ -151,7 +144,7 @@ export default function EmployeeLogin() {
                 value={credentials.password}
                 onChange={(e) => {
                   setCredentials({ ...credentials, password: e.target.value });
-                  setError(null); // Clear error when user starts typing
+                  setError(null);
                 }}
               />
             </div>

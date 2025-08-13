@@ -73,17 +73,14 @@ export function PosterEditor() {
           clonedPreview.style.backgroundColor = poster.bgColor;
           clonedPreview.style.color = poster.textColor;
 
-          // Make sure text is visible and large
           const textElement = clonedPreview.querySelector("[contenteditable]");
           if (textElement) {
             textElement.style.fontSize = "3rem";
             textElement.style.lineHeight = "1.5";
             textElement.style.padding = "2rem";
             textElement.style.textAlign = poster.alignment;
-            // Remove flex properties as they might interfere with text alignment
             textElement.style.display = "block";
             textElement.style.width = "100%";
-            // Ensure text container takes full width
             const textContainer = textElement.parentElement;
             if (textContainer) {
               textContainer.style.width = "100%";
@@ -93,10 +90,8 @@ export function PosterEditor() {
       },
     });
 
-    // Remove clone
     document.body.removeChild(clone);
 
-    // Download
     const dataUrl = canvas.toDataURL("image/png");
     const link = document.createElement("a");
     link.href = dataUrl;
@@ -105,6 +100,7 @@ export function PosterEditor() {
 
     toast.success("Poster downloaded successfully!");
   };
+
   useEffect(() => {
     if (textRef.current) {
       textRef.current.style.textAlign = poster.alignment;

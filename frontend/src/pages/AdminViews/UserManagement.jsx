@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import {
   FiUserPlus,
-  FiMail,
   FiUser,
   FiKey,
   FiCheck,
@@ -19,18 +18,13 @@ export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showInviteModal, setShowInviteModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [isInviting, setIsInviting] = useState(false);
-  const [passwordError, setPasswordError] = useState("");
   const [newUser, setNewUser] = useState({
     name: "",
     username: "",
     role: "WAITER",
-    sendInvite: false,
     password: "",
-    restaurantCode: "",
   });
 
   const validatePassword = (password) => {
@@ -50,7 +44,6 @@ export default function UserManagement() {
       const response = await api.get(`/restaurant/${user.restaurantId}`);
       setUsers(response.data);
     } catch (error) {
-      console.error("Error fetching users:", error);
       toast.error(error.response?.data?.message || "Failed to fetch users");
     } finally {
       setLoading(false);
@@ -69,7 +62,6 @@ export default function UserManagement() {
   const handleCreateUser = async (e) => {
     e.preventDefault();
 
-    // Add password validation
     if (!newUser.password) {
       toast.error("Password is required");
       return;
@@ -83,7 +75,6 @@ export default function UserManagement() {
 
     setIsCreating(true);
     try {
-      // Change this line to use the correct endpoint
       const response = await api.post("/register-employee", {
         name: newUser.name,
         username: newUser.username,
@@ -96,7 +87,6 @@ export default function UserManagement() {
       resetForm();
       fetchUsers();
     } catch (error) {
-      console.error("Creation error:", error.response?.data);
       toast.error(
         error.response?.data?.message ||
           "Failed to create user. Please check all fields."
@@ -111,12 +101,9 @@ export default function UserManagement() {
       name: "",
       username: "",
       role: "WAITER",
-      sendInvite: false,
       password: "",
-      restaurantCode: "",
     });
     setEditingUser(null);
-    setPasswordError("");
   };
 
   const handleEditUser = (user) => {
@@ -126,7 +113,6 @@ export default function UserManagement() {
       username: user.username,
       role: user.role,
       password: "",
-      restaurantCode: "",
     });
     setShowCreateModal(true);
   };
@@ -219,21 +205,16 @@ export default function UserManagement() {
     message: "",
   });
 
-  // Password strength checker
   const checkPasswordStrength = (password) => {
     let score = 0;
     let message = "";
 
-    // Length check
     if (password.length >= 8) score++;
     if (password.length >= 12) score++;
-
-    // Complexity checks
     if (/[A-Z]/.test(password)) score++;
     if (/[0-9]/.test(password)) score++;
     if (/[^A-Za-z0-9]/.test(password)) score++;
 
-    // Determine message
     if (score === 0) message = "Very weak";
     else if (score <= 2) message = "Weak";
     else if (score === 3) message = "Good";
@@ -247,7 +228,6 @@ export default function UserManagement() {
   }, [newUser.password, confirmPassword]);
 
   const checkPasswordMatch = () => {
-    // Only check if both fields have values
     if (newUser.password && confirmPassword) {
       const doMatch = newUser.password === confirmPassword;
       setPasswordMismatch(!doMatch);
@@ -256,7 +236,6 @@ export default function UserManagement() {
     }
   };
 
-  // Update password strength when password changes
   useEffect(() => {
     if (newUser.password) {
       setPasswordStrength(checkPasswordStrength(newUser.password));
@@ -289,7 +268,6 @@ export default function UserManagement() {
         </div>
       </div>
 
-      {/* Users Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         {loading ? (
           <div className="p-8 text-center">Loading users...</div>
@@ -400,7 +378,6 @@ export default function UserManagement() {
         )}
       </div>
 
-      {/* Create/Edit User Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="w-full max-w-md bg-white rounded-lg shadow-xl">
@@ -468,7 +445,6 @@ export default function UserManagement() {
                           value={newUser.password}
                           onChange={(e) => {
                             const error = validatePassword(e.target.value);
-                            setPasswordError(error);
                             setNewUser({
                               ...newUser,
                               password: e.target.value,
@@ -500,11 +476,6 @@ export default function UserManagement() {
                             {passwordStrength.message}
                           </p>
                         </div>
-                      )}
-                      {passwordError && (
-                        <p className="text-red-500 text-xs mt-1">
-                          {passwordError}
-                        </p>
                       )}
                     </div>
 
@@ -569,11 +540,7 @@ export default function UserManagement() {
                       ? "opacity-70 cursor-not-allowed"
                       : ""
                   }`}
-                  disabled={
-                    isCreating ||
-                    passwordMismatch ||
-                    (newUser.role === "MANAGER" && !newUser.restaurantCode)
-                  }
+                  disabled={isCreating || passwordMismatch}
                 >
                   {isCreating ? (
                     <>

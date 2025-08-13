@@ -14,7 +14,6 @@ const ResetPasswordPage = () => {
   const [tokenValid, setTokenValid] = useState(null);
   const navigate = useNavigate();
 
-  // Check token validity when component mounts
   useEffect(() => {
     if (!token) {
       setTokenValid(false);
@@ -24,7 +23,6 @@ const ResetPasswordPage = () => {
 
     const checkToken = async () => {
       try {
-        // Use the correct endpoint for token validation
         const response = await api.get(
           `/api/auth/validate-reset-token?token=${token}`
         );

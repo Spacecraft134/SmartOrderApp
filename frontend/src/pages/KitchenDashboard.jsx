@@ -70,7 +70,6 @@ export function KitchenDashboard() {
     );
   }, []);
 
-  // Audio initialization
   useEffect(() => {
     audioRef.current = new Audio(notificationSound);
     audioRef.current.load();
@@ -83,7 +82,6 @@ export function KitchenDashboard() {
     };
   }, []);
 
-  // User initialization
   useEffect(() => {
     if (isAdminView) {
       const userData = localStorage.getItem("userData");
@@ -114,7 +112,6 @@ export function KitchenDashboard() {
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch((e) => {
-        console.error("Audio play failed:", e);
         toast.info("New order received!");
       });
     }
@@ -154,7 +151,6 @@ export function KitchenDashboard() {
 
       setOrders(processedOrders);
     } catch (error) {
-      console.error("Failed to fetch orders:", error);
       toast.error("Failed to load orders");
 
       if (error.response?.status === 401 || error.response?.status === 403) {
@@ -174,11 +170,7 @@ export function KitchenDashboard() {
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
-      debug: (str) => console.log("STOMP:", str),
       onConnect: () => {
-        console.log("Kitchen WebSocket connected");
-
-        // Main kitchen orders channel
         stompClient.subscribe("/topic/kitchen-orders", (message) => {
           if (!message?.body) return;
 
@@ -188,7 +180,6 @@ export function KitchenDashboard() {
             if (!order) return;
 
             setOrders((prev) => {
-              // Handle different event types
               switch (event.eventType) {
                 case "DELETE":
                 case "COMPLETED":
@@ -226,7 +217,6 @@ export function KitchenDashboard() {
           }
         });
 
-        // Dedicated new orders channel (simpler payload)
         stompClient.subscribe("/topic/new-orders", (message) => {
           if (!message?.body) return;
 
@@ -252,11 +242,7 @@ export function KitchenDashboard() {
         });
       },
       onStompError: (frame) => {
-        console.error("WebSocket error:", frame);
         toast.error("Connection error. Trying to reconnect...");
-      },
-      onDisconnect: () => {
-        console.log("WebSocket disconnected");
       },
     });
 
@@ -269,6 +255,7 @@ export function KitchenDashboard() {
       }
     };
   }, [isAdminView]);
+
   const startOrderProgress = async (id) => {
     try {
       const token = getAuthToken();
@@ -293,7 +280,6 @@ export function KitchenDashboard() {
         )
       );
     } catch (error) {
-      console.error("Failed to start order:", error);
       toast.error(error.response?.data?.message || "Failed to start order");
 
       if (error.response?.status === 401 || error.response?.status === 403) {
@@ -316,7 +302,6 @@ export function KitchenDashboard() {
       toast.success("Order marked READY for pickup!");
       setOrders((prev) => prev.filter((order) => order.id !== id));
     } catch (error) {
-      console.error("Failed to mark order ready:", error);
       toast.error("Failed to mark order ready");
 
       if (error.response?.status === 401 || error.response?.status === 403) {
@@ -361,12 +346,10 @@ export function KitchenDashboard() {
         navigate("/admin/dashboard");
       }
     } catch (error) {
-      console.error("Logout failed:", error);
       toast.error("Logout failed. Please try again.");
     }
   };
 
-  // Render UI
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 w-full">
       <header className="bg-gradient-to-r from-blue-600 to-blue-600 text-white py-8 px-6 shadow-xl w-full">
@@ -511,6 +494,7 @@ export function KitchenDashboard() {
                           <button
                             onClick={() => toggleOrderExpand(order.id)}
                             className="text-gray-400 hover:text-gray-600 p-1 transition-colors"
+                            aria-label={isExpanded ? "Collapse" : "Expand"}
                           >
                             {isExpanded ? <FiChevronUp /> : <FiChevronDown />}
                           </button>

@@ -23,7 +23,6 @@ const SignUpPage = () => {
   });
   const navigate = useNavigate();
 
-  // Check if admin exists on component mount
   useEffect(() => {
     const checkAdminExists = async () => {
       try {
@@ -32,7 +31,7 @@ const SignUpPage = () => {
           setAdminExists(true);
         }
       } catch (err) {
-        console.error("Error checking admin existence:", err);
+        toast.error("Error checking admin existence");
       }
     };
 

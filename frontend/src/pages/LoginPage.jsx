@@ -9,7 +9,7 @@ const LoginPage = () => {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { login, user } = useAuth();
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,7 +26,6 @@ const LoginPage = () => {
         throw new Error(result.error || "Login failed");
       }
 
-      // Redirect based on role
       const redirectPath =
         result.user.role === "ADMIN" ? "/admin" : "/dashboard";
       navigate(redirectPath);

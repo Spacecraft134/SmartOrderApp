@@ -15,7 +15,6 @@ import {
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import SockJS from "sockjs-client";
-
 import { Client } from "@stomp/stompjs";
 
 export function CustomerOrder() {
@@ -57,7 +56,6 @@ export function CustomerOrder() {
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
-      debug: (str) => console.debug(str),
       onConnect: () => {
         setConnectionState("CONNECTED");
         const sub = stompClient.subscribe(
@@ -69,7 +67,7 @@ export function CustomerOrder() {
                 navigate(`/thank-you/${tableID}`);
               }
             } catch (err) {
-              console.error("Error parsing message:", err);
+              // Error handling without console.log
             }
           }
         );
@@ -77,11 +75,9 @@ export function CustomerOrder() {
       },
       onStompError: (frame) => {
         setConnectionState("ERROR");
-        console.error("STOMP error:", frame);
       },
       onWebSocketError: (error) => {
         setConnectionState("ERROR");
-        console.error("WebSocket error:", error);
       },
       onDisconnect: () => {
         setConnectionState("DISCONNECTED");
@@ -184,12 +180,10 @@ export function CustomerOrder() {
     setIsSubmitting(true);
 
     try {
-      // 1. Start session
       await axios.post(
         `http://localhost:8080/api/tables/${tableID}/start-session`
       );
 
-      // 2. Submit order (removed Authorization header since endpoint is public)
       const orderData = {
         tableNumber: tableID,
         items: cart.map((item) => ({
@@ -199,16 +193,11 @@ export function CustomerOrder() {
         })),
       };
 
-      const response = await axios.post(
-        "http://localhost:8080/api/orders",
-        orderData,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            // Removed Authorization header since this is a public endpoint
-          },
-        }
-      );
+      await axios.post("http://localhost:8080/api/orders", orderData, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
       toast.success("Order Placed Successfully!");
       setCart([]);
@@ -216,11 +205,6 @@ export function CustomerOrder() {
 
       navigate(`/guest-orders/${tableID}`);
     } catch (error) {
-      console.error("Order error:", {
-        status: error.response?.status,
-        data: error.response?.data,
-        config: error.config,
-      });
       toast.error(error.response?.data?.message || "Order failed");
     } finally {
       setIsSubmitting(false);

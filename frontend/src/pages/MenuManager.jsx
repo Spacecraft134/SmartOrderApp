@@ -1,9 +1,9 @@
-import axios from "axios";
 import { useEffect, useState } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import api from "../pages/Utils/api";
 import { useAuth } from "../pages/Context/AuthContext";
+
 export default function MenuManager() {
   const [menuItems, setMenuItems] = useState([]);
   const [newItem, setNewItem] = useState({
@@ -32,7 +32,6 @@ export default function MenuManager() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // Fetch menu items
   const fetchMenuItems = () => {
     setIsLoading(true);
     api
@@ -42,7 +41,6 @@ export default function MenuManager() {
         setIsLoading(false);
       })
       .catch((error) => {
-        console.error("Error details:", error.response);
         if (error.response?.status === 401) {
           toast.error("Session expired. Please login again.");
           logout();
@@ -95,7 +93,6 @@ export default function MenuManager() {
         resetForm();
       })
       .catch((error) => {
-        console.error("Add error details:", error.response);
         if (error.response?.status === 401) {
           toast.error("Session expired. Please login again.");
           logout();
@@ -119,8 +116,6 @@ export default function MenuManager() {
 
   const handleUpdateItem = (id) => {
     const formData = new FormData();
-
-    // Create a Blob for the JSON data
     const itemBlob = new Blob(
       [
         JSON.stringify({
@@ -154,7 +149,6 @@ export default function MenuManager() {
         cancelEditing();
       })
       .catch((error) => {
-        console.error("Update error:", error);
         if (error.response?.status === 401) {
           toast.error("Session expired. Please login again.");
           logout();
@@ -163,7 +157,7 @@ export default function MenuManager() {
         }
       });
   };
-  // Delete item
+
   const handleDeleteItem = (id) => {
     if (!window.confirm("Are you sure you want to delete this item?")) return;
 
@@ -174,12 +168,10 @@ export default function MenuManager() {
         toast.success("Item deleted successfully!");
       })
       .catch((error) => {
-        console.error("Delete error:", error);
         toast.error(error.response?.data?.message || "Failed to delete item");
       });
   };
 
-  // Image handling
   const handleImageChange = (e, isEdit = false) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -193,7 +185,6 @@ export default function MenuManager() {
     }
   };
 
-  // Start editing
   const startEditing = (item) => {
     setEditingId(item.id);
     setEditFormData({
@@ -209,28 +200,24 @@ export default function MenuManager() {
     setEditImageFile(null);
   };
 
-  // Cancel editing
   const cancelEditing = () => {
     setEditingId(null);
     setEditPreviewImage(null);
     setEditImageFile(null);
   };
 
-  // Toggle availability
   const toggleAvailability = async (id) => {
     try {
       await api.patch(`/api/menu/${id}/availability`);
       toast.success("Item availability updated");
       fetchMenuItems();
     } catch (error) {
-      console.error("Toggle availability error:", error);
       toast.error(
         error.response?.data?.message || "Failed to toggle availability"
       );
     }
   };
 
-  // Filtering and pagination logic remains the same
   const uniqueCategories = [
     "All",
     ...new Set(menuItems.map((i) => i.category || "Uncategorized")),
@@ -270,7 +257,6 @@ export default function MenuManager() {
       <ToastContainer position="top-center" autoClose={3000} />
       <h1 className="text-3xl font-bold mb-6">Menu Manager</h1>
 
-      {/* Add Item Form */}
       <form
         onSubmit={handleAddItem}
         className="bg-white shadow-md rounded-lg p-6 mb-8"
@@ -365,7 +351,6 @@ export default function MenuManager() {
         </div>
       </form>
 
-      {/* Category Tabs */}
       <div className="flex flex-wrap gap-2 mb-6">
         {uniqueCategories.map((cat) => (
           <button
@@ -385,7 +370,6 @@ export default function MenuManager() {
         ))}
       </div>
 
-      {/* Search and Sort */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div>
           <label className="block text-sm font-medium mb-1">Search</label>
@@ -412,7 +396,6 @@ export default function MenuManager() {
         </div>
       </div>
 
-      {/* Menu Items List */}
       <div className="space-y-4">
         {isLoading ? (
           <div className="text-center py-10">
@@ -623,7 +606,6 @@ export default function MenuManager() {
         )}
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex justify-center mt-8 space-x-2">
           <button

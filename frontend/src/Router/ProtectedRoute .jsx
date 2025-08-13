@@ -5,7 +5,6 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  // Show loading spinner while auth is being initialized
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
@@ -17,9 +16,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     );
   }
 
-  // If no user, redirect based on the expected user type
   if (!user) {
-    // If route expects employee roles, redirect to employee login
     if (
       allowedRoles &&
       (allowedRoles.includes("WAITER") || allowedRoles.includes("KITCHEN"))
@@ -28,11 +25,9 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
         <Navigate to="/employee-login" state={{ from: location }} replace />
       );
     }
-    // Otherwise redirect to admin login
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check role-based access if allowed roles are specified
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     return <Navigate to="/unauthorized" replace />;
   }
@@ -40,7 +35,6 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children;
 };
 
-// Specific route guards for convenience
 export const AdminRoute = ({ children }) => (
   <ProtectedRoute allowedRoles={["ADMIN"]}>{children}</ProtectedRoute>
 );

@@ -17,7 +17,6 @@ export const LaunchPage = () => {
   const [activeIndex, setActiveIndex] = useState(0);
   const navigate = useNavigate();
 
-  // Contact form state
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -27,23 +26,18 @@ export const LaunchPage = () => {
   const [submitStatus, setSubmitStatus] = useState(null);
   const [showDisclaimer, setShowDisclaimer] = useState(true);
 
-  // EmailJS configuration - these should ideally come from environment variables
   const emailjsConfig = {
     serviceId: "service_ynnqzxd",
     templateId: "template_dr3krud",
     publicKey: "DgG8mAFoMUh3-Inpl",
   };
 
-  // Initialize EmailJS
   useEffect(() => {
     if (emailjsConfig.publicKey) {
       emailjs.init(emailjsConfig.publicKey);
-    } else {
-      console.error("EmailJS public key not configured");
     }
   }, []);
 
-  // Handle scroll effect for navbar
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
@@ -52,7 +46,6 @@ export const LaunchPage = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Auto-rotate features
   useEffect(() => {
     const interval = setInterval(() => {
       setActiveFeature((prev) => (prev + 1) % features.length);
@@ -60,7 +53,6 @@ export const LaunchPage = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -69,19 +61,16 @@ export const LaunchPage = () => {
     }));
   };
 
-  // Handle form submission with EmailJS
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitStatus(null);
 
     try {
-      // Validate required fields
       if (!formData.name || !formData.email || !formData.message) {
         throw new Error("Please fill all required fields");
       }
 
-      // Send email using EmailJS
       const response = await emailjs.send(
         emailjsConfig.serviceId,
         emailjsConfig.templateId,
@@ -114,13 +103,11 @@ export const LaunchPage = () => {
           ),
         });
 
-        // Clear form after successful submission
         setFormData({ name: "", email: "", message: "" });
       } else {
         throw new Error("Email sending failed");
       }
     } catch (error) {
-      console.error("EmailJS error:", error);
       setSubmitStatus({
         success: false,
         message: (
@@ -145,7 +132,6 @@ export const LaunchPage = () => {
     }
   };
 
-  // Features data
   const features = [
     {
       title: "Real-Time Order Management",
@@ -168,7 +154,6 @@ export const LaunchPage = () => {
     },
   ];
 
-  // Carousel images data
   const carouselItems = [
     { src: LiveOrder, caption: "Live Orders" },
     { src: CustomerOrderPic, caption: "Customer Ordering" },
@@ -182,13 +167,10 @@ export const LaunchPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0a0e27] to-[#0a1129] text-white overflow-hidden relative">
-      {/* Enhanced background effects */}
       <div className="fixed inset-0 overflow-hidden z-0 pointer-events-none">
-        {/* Grid lines */}
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHBhdGggZD0iTTAgMEg0MFY0MEgweiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDUpIiBzdHJva2Utd2lkdGg9IjEiLz48L3N2Zz4=')] opacity-20" />
       </div>
 
-      {/* Navigation Bar */}
       <motion.nav
         className={`fixed w-full z-50 transition-all duration-300 py-4 ${
           isScrolled
@@ -262,7 +244,6 @@ export const LaunchPage = () => {
         </div>
       </motion.nav>
 
-      {/* Hero Section */}
       <section className="relative min-h-screen flex flex-col justify-center items-center pt-16 px-4 text-center z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -294,23 +275,20 @@ export const LaunchPage = () => {
 
           {showDisclaimer && (
             <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-lg relative">
-              {" "}
               <p className="font-medium">
-                {" "}
                 ⚠️ <strong>Demo / Portfolio Notice:</strong> This application is
                 a demonstration of the Smart Order & Service System I built for
-                my family’s restaurant. All data shown here is{" "}
+                my family's restaurant. All data shown here is{" "}
                 <strong>fake</strong> and this deployment is for portfolio /
                 educational purposes only. It is{" "}
-                <strong>not a live ordering platform</strong>.{" "}
-              </p>{" "}
+                <strong>not a live ordering platform</strong>.
+              </p>
               <button
                 className="absolute top-2 right-2 text-yellow-900 hover:text-yellow-700 font-bold"
                 onClick={() => setShowDisclaimer(false)}
               >
-                {" "}
-                ×{" "}
-              </button>{" "}
+                ×
+              </button>
             </div>
           )}
 
@@ -334,7 +312,6 @@ export const LaunchPage = () => {
           </motion.div>
         </motion.div>
 
-        {/* App Preview */}
         <motion.div
           className="mt-20 relative w-full max-w-5xl mx-auto"
           initial={{ opacity: 0, y: 50 }}
@@ -614,7 +591,6 @@ export const LaunchPage = () => {
             </p>
           </motion.div>
 
-          {/* Carousel */}
           <div className="relative overflow-hidden">
             <motion.div
               className="flex transition-transform duration-500"
@@ -636,7 +612,6 @@ export const LaunchPage = () => {
               ))}
             </motion.div>
 
-            {/* Prev Button */}
             <button
               onClick={() =>
                 setActiveIndex((prev) =>
@@ -648,7 +623,6 @@ export const LaunchPage = () => {
               ◀
             </button>
 
-            {/* Next Button */}
             <button
               onClick={() =>
                 setActiveIndex((prev) =>

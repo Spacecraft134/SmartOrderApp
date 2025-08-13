@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
@@ -18,18 +18,11 @@ export function CustomerOrdersList() {
   const [hasOrders, setHasOrders] = useState(false);
   const [sessionActive, setSessionActive] = useState(false);
 
-  // Fetch orders without requiring authentication
   const fetchOrders = async () => {
     setLoading(true);
     try {
       const ordersRes = await axios.get(
-        `http://localhost:8080/api/orders/by-table/${tableNumber}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            // No Authorization header needed since endpoint is public
-          },
-        }
+        `http://localhost:8080/api/orders/by-table/${tableNumber}`
       );
 
       let fetched = [];
@@ -46,12 +39,10 @@ export function CustomerOrdersList() {
       setOrders(activeOrders);
       setHasOrders(activeOrders.length > 0);
 
-      // If we just placed an order but got no results, show a message
       if (activeOrders.length === 0) {
         toast.info("Your order is being processed. Please wait...");
       }
     } catch (err) {
-      console.error("Error fetching orders:", err);
       toast.error("Failed to load orders. Please refresh the page.");
       setOrders([]);
       setHasOrders(false);
@@ -60,7 +51,6 @@ export function CustomerOrdersList() {
     }
   };
 
-  // Initialize WebSocket connection
   const initWebSocket = () => {
     const socket = new SockJS("http://localhost:8080/ws");
     const stompClient = new Client({
@@ -97,7 +87,7 @@ export function CustomerOrdersList() {
               toast.info(`Order #${updatedOrder.id} is ready!`);
             }
           } catch (err) {
-            console.error("Failed to process update:", err);
+            // Error handling
           }
         });
 
@@ -112,13 +102,12 @@ export function CustomerOrdersList() {
                 navigate(`/thank-you/${tableNumber}`);
               }
             } catch (err) {
-              console.error("Failed to process session update:", err);
+              // Error handling
             }
           }
         );
       },
       onStompError: (frame) => {
-        console.error("WebSocket error:", frame.headers["message"]);
         setWsConnected(false);
       },
       onDisconnect: () => {
@@ -138,18 +127,15 @@ export function CustomerOrdersList() {
     const initialize = async () => {
       if (!isMounted) return;
 
-      // First check if session is active
       try {
         const res = await axios.get(
           `http://localhost:8080/api/tables/${tableNumber}/session-status`
         );
         setSessionActive(res.data);
       } catch (error) {
-        console.error("Session check failed:", error);
         setSessionActive(false);
       }
 
-      // Then fetch orders
       await fetchOrders();
 
       if (isMounted) {

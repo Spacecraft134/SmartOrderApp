@@ -9,9 +9,7 @@ export default function EmployeeRouteGuard({ children }) {
   useEffect(() => {
     if (!user || (user.role !== "WAITER" && user.role !== "KITCHEN")) {
       navigate("/employee/login", { replace: true });
-    }
-    // Redirect to correct dashboard if trying to access wrong one
-    else if (
+    } else if (
       user.role === "WAITER" &&
       window.location.pathname.includes("kitchen-dashboard")
     ) {

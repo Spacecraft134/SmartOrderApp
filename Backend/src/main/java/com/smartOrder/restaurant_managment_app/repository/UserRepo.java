@@ -16,8 +16,8 @@ public interface UserRepo extends JpaRepository<Users, Integer> {
   List<Users> findByRestaurantId(Integer restaurantId);
   List<Users> findByRestaurantIdAndRole(Integer restaurantId, Users.Role role);
   boolean existsByRestaurantIdAndRole(Long restaurantId, Users.Role role);
-  boolean existsById(Long id);
-  void deleteById(Long id);
+  boolean existsById(Integer id);
+  void deleteById(Integer id);
   Users findByResetToken(String resetToken);
   boolean existsByRole(Role role);
   

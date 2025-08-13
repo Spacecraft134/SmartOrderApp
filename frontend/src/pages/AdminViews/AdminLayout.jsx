@@ -10,13 +10,11 @@ import {
   FiUsers,
 } from "react-icons/fi";
 import { useState } from "react";
-import axios from "axios";
 import { useAuth } from "../Context/AuthContext";
 
 export function AdminLayout() {
   const location = useLocation();
-  const navigate = useNavigate();
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const { logout } = useAuth();
@@ -103,7 +101,6 @@ export function AdminLayout() {
           </nav>
         </div>
 
-        {/* Logout Button - Moved up but still at bottom */}
         <div className="p-4 border-t border-blue-700">
           <button
             onClick={() => setShowLogoutModal(true)}

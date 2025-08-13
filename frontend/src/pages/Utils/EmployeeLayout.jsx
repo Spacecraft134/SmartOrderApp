@@ -7,7 +7,6 @@ export default function EmployeeLayout() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Only redirect if we're at the base /employee path
     if (window.location.pathname === "/employee") {
       if (user?.role === "WAITER") {
         navigate("/employee/waiter-dashboard", { replace: true });
@@ -19,8 +18,7 @@ export default function EmployeeLayout() {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Common employee layout elements */}
-      <Outlet /> {/* This will render the nested routes */}
+      <Outlet />
     </div>
   );
 }

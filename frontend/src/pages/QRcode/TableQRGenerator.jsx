@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import QRCode from "react-qr-code";
 import { toPng } from "html-to-image";
 import { saveAs } from "file-saver";
@@ -30,6 +30,7 @@ export function TableQRGenerator() {
     const value = Math.min(Math.max(1, Number(e.target.value)), 100);
     setNumTables(value);
   };
+
   const handleDownloadAll = async () => {
     setDownloadingAll(true);
     for (let num of tableNumbers) {
@@ -42,11 +43,12 @@ export function TableQRGenerator() {
         });
         saveAs(dataUrl, `table-${num}-qr.png`);
       } catch (err) {
-        console.error(`QR download failed for table ${num}`, err);
+        // Error handling
       }
     }
     setDownloadingAll(false);
   };
+
   const handleLogoUpload = (e) => {
     const file = e.target.files[0];
     if (file) {

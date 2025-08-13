@@ -13,7 +13,6 @@ const ForgotPasswordPage = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Check if the current path includes '/employee'
     setIsEmployeePath(location.pathname.includes("/employee"));
   }, [location]);
 
@@ -36,7 +35,6 @@ const ForgotPasswordPage = () => {
 
     try {
       const endpoint = "/api/auth/forgot-password";
-
       const response = await api.post(endpoint, { email });
       setSuccess(response.data.message || "Reset link sent to your email");
       setEmail("");

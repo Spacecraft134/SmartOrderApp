@@ -14,27 +14,17 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const initializeAuth = () => {
       try {
-        console.log("Initializing auth...");
-
-        // Check for admin auth first
         const token = localStorage.getItem("token");
         const userData = localStorage.getItem("userData");
-
-        // Then check for employee auth
         const employeeToken = localStorage.getItem("employeeToken");
         const employeeData = localStorage.getItem("employeeData");
 
         if (token && userData) {
           try {
             const parsedUserData = JSON.parse(userData);
-
-            // Basic token validation - check if it's a valid JWT format
             const tokenParts = token.split(".");
             if (tokenParts.length === 3) {
-              // Decode payload to check expiration
               const payload = JSON.parse(atob(tokenParts[1]));
-
-              // Check if token is not expired
               const currentTime = Math.floor(Date.now() / 1000);
 
               if (payload.exp && payload.exp > currentTime) {
@@ -42,26 +32,18 @@ export function AuthProvider({ children }) {
                   "Authorization"
                 ] = `Bearer ${token}`;
                 setUser(parsedUserData);
-                console.log(
-                  "Admin auth restored successfully:",
-                  parsedUserData.name
-                );
               } else {
-                console.log("Admin token expired, clearing...");
                 clearAuth();
               }
             } else {
-              console.log("Invalid admin token format, clearing...");
               clearAuth();
             }
           } catch (error) {
-            console.error("Admin auth parsing failed:", error);
             clearAuth();
           }
         } else if (employeeToken && employeeData) {
           try {
             const parsedEmployeeData = JSON.parse(employeeData);
-
             const tokenParts = employeeToken.split(".");
             if (tokenParts.length === 3) {
               const payload = JSON.parse(atob(tokenParts[1]));
@@ -72,39 +54,27 @@ export function AuthProvider({ children }) {
                   "Authorization"
                 ] = `Bearer ${employeeToken}`;
                 setUser(parsedEmployeeData);
-                console.log(
-                  "Employee auth restored successfully:",
-                  parsedEmployeeData.name
-                );
               } else {
-                console.log("Employee token expired, clearing...");
                 clearEmployeeAuth();
               }
             } else {
-              console.log("Invalid employee token format, clearing...");
               clearEmployeeAuth();
             }
           } catch (error) {
-            console.error("Employee auth parsing failed:", error);
             clearEmployeeAuth();
           }
-        } else {
-          console.log("No stored authentication found");
         }
       } catch (error) {
-        console.error("Auth initialization error:", error);
+        // Silent error handling
       } finally {
         setLoading(false);
       }
     };
 
-    // Set up broadcast channels for cross-tab communication
     const authChannel = new BroadcastChannel(AUTH_CHANNEL);
     const employeeAuthChannel = new BroadcastChannel(EMPLOYEE_AUTH_CHANNEL);
 
     const handleMessage = (event) => {
-      console.log("Broadcast message received:", event.data);
-
       switch (event.data.type) {
         case "LOGOUT":
           clearAuth();
@@ -114,7 +84,6 @@ export function AuthProvider({ children }) {
           break;
         case "LOGIN":
         case "EMPLOYEE_LOGIN":
-          // Reinitialize auth when login happens in another tab
           setTimeout(initializeAuth, 100);
           break;
         default:
@@ -123,26 +92,20 @@ export function AuthProvider({ children }) {
     };
 
     const handleStorage = (event) => {
-      // Handle direct localStorage changes (like from dev tools)
       if (event.key === "token" && !event.newValue) {
-        console.log("Token removed from localStorage");
         clearAuth();
       }
       if (event.key === "employeeToken" && !event.newValue) {
-        console.log("Employee token removed from localStorage");
         clearEmployeeAuth();
       }
     };
 
-    // Set up event listeners
     authChannel.addEventListener("message", handleMessage);
     employeeAuthChannel.addEventListener("message", handleMessage);
     window.addEventListener("storage", handleStorage);
 
-    // Initialize authentication
     initializeAuth();
 
-    // Cleanup function
     return () => {
       authChannel.removeEventListener("message", handleMessage);
       employeeAuthChannel.removeEventListener("message", handleMessage);
@@ -153,7 +116,6 @@ export function AuthProvider({ children }) {
   }, []);
 
   const clearAuth = () => {
-    console.log("Clearing admin authentication");
     localStorage.removeItem("token");
     localStorage.removeItem("userData");
     delete api.defaults.headers.common["Authorization"];
@@ -161,7 +123,6 @@ export function AuthProvider({ children }) {
   };
 
   const clearEmployeeAuth = () => {
-    console.log("Clearing employee authentication");
     localStorage.removeItem("employeeToken");
     localStorage.removeItem("employeeData");
     delete api.defaults.headers.common["Authorization"];
@@ -170,23 +131,17 @@ export function AuthProvider({ children }) {
 
   const login = async (credentials) => {
     try {
-      console.log("Attempting admin login for:", credentials.username);
-
       const response = await api.post("/login", credentials);
-      console.log("Login response received:", response.status);
 
       if (response.data?.token) {
         if (response.data.role !== "ADMIN") {
-          console.log("Invalid role for admin login:", response.data.role);
           return { success: false, error: "Unauthorized role" };
         }
 
-        // Clear any existing employee auth
         localStorage.removeItem("employeeToken");
         localStorage.removeItem("employeeData");
 
         const { token, username, role, name, restaurantId } = response.data;
-
         const userData = {
           name,
           role,
@@ -195,38 +150,26 @@ export function AuthProvider({ children }) {
           restaurantId,
         };
 
-        console.log("Storing admin auth data...");
-
-        // Store in localStorage
         localStorage.setItem("token", token);
         localStorage.setItem("userData", JSON.stringify(userData));
-
-        // Set API header
         api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-
-        // Update state
         setUser(userData);
 
-        console.log("Admin login successful for:", name);
-
-        // Notify other tabs
         try {
           new BroadcastChannel(AUTH_CHANNEL).postMessage({ type: "LOGIN" });
         } catch (broadcastError) {
-          console.warn("Failed to broadcast login:", broadcastError);
+          // Silent error handling
         }
 
         return { success: true, user: userData, error: null };
       }
 
-      console.log("Login failed - no token in response");
       return {
         success: false,
         user: null,
         error: response.data?.message || "Login failed - no token received",
       };
     } catch (error) {
-      console.error("Admin login error:", error);
       return {
         success: false,
         user: null,
@@ -238,18 +181,13 @@ export function AuthProvider({ children }) {
 
   const employeeLogin = async (credentials) => {
     try {
-      console.log("Attempting employee login for:", credentials.username);
-
       const response = await api.post("/api/employee/login", credentials);
-      console.log("Employee login response:", response.status);
 
       if (response.data?.token && response.data?.user) {
-        // Clear any existing admin auth
         localStorage.removeItem("token");
         localStorage.removeItem("userData");
 
         const { token, user: userData } = response.data;
-
         const employeeData = {
           name: userData.name,
           role: userData.role,
@@ -259,39 +197,27 @@ export function AuthProvider({ children }) {
           restaurantId: userData.restaurantId,
         };
 
-        console.log("Storing employee auth data...");
-
-        // Store in localStorage
         localStorage.setItem("employeeToken", token);
         localStorage.setItem("employeeData", JSON.stringify(employeeData));
-
-        // Set API header
         api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-
-        // Update state
         setUser(employeeData);
 
-        console.log("Employee login successful for:", userData.name);
-
-        // Notify other tabs
         try {
           new BroadcastChannel(EMPLOYEE_AUTH_CHANNEL).postMessage({
             type: "EMPLOYEE_LOGIN",
           });
         } catch (broadcastError) {
-          console.warn("Failed to broadcast employee login:", broadcastError);
+          // Silent error handling
         }
 
         return { success: true, user: employeeData, error: null };
       }
 
-      console.log("Employee login failed - invalid response structure");
       return {
         success: false,
         error: response.data?.message || "Login failed - invalid response",
       };
     } catch (error) {
-      console.error("Employee login error:", error);
       return {
         success: false,
         error:
@@ -301,40 +227,28 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    console.log("Initiating logout for user:", user?.role);
-
     try {
-      // Call the appropriate logout endpoint
       const endpoint =
         user?.role === "ADMIN" ? "/logout" : "/api/employee/logout";
       await api.post(endpoint);
-      console.log("Backend logout successful");
     } catch (error) {
-      console.warn(
-        "Backend logout failed (continuing with frontend logout):",
-        error.message
-      );
+      // Silent error handling
     }
 
-    // Clear ALL authentication data regardless of user type
     clearAuth();
     clearEmployeeAuth();
-
-    // Remove the authorization header
     delete api.defaults.headers.common["Authorization"];
 
-    // Broadcast logout to all tabs
     try {
       new BroadcastChannel(AUTH_CHANNEL).postMessage({ type: "LOGOUT" });
       new BroadcastChannel(EMPLOYEE_AUTH_CHANNEL).postMessage({
         type: "EMPLOYEE_LOGOUT",
       });
     } catch (broadcastError) {
-      console.warn("Failed to broadcast logout:", broadcastError);
+      // Silent error handling
     }
 
-    console.log("Logout completed - all credentials cleared");
-    navigate("/employee/login"); // Redirect to login page
+    navigate("/employee/login");
   };
 
   const contextValue = {
