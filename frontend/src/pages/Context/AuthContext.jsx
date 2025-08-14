@@ -196,7 +196,6 @@ export function AuthProvider({ children }) {
           }
         }
       } catch (error) {
-        // Silent error handling
       } finally {
         setLoading(false);
       }

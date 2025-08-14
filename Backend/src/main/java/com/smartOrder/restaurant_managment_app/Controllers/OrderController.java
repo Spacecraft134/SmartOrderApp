@@ -262,24 +262,21 @@ public class OrderController {
     @GetMapping("/daily/{date}")
     public ResponseEntity<Stats> getStatsForDate(
         @PathVariable("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-        HttpServletRequest request) {
-        
-        System.out.println("📊 GET request received for daily stats: " + date);
-        
+        HttpServletRequest request) {   
         try {
             Stats freshStats = statsCalculationService.calculateStatsFromData(date);
-            System.out.println("📊 SUCCESS - Returning stats: " + freshStats);
+            
             return ResponseEntity.ok(freshStats);
             
         } catch (Exception e) {
-            System.out.println("📊 ERROR - Exception occurred: " + e.getMessage());
+           
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
     
     /**
-     * NEW: Manual refresh endpoint for immediate stats recalculation
+     * Manual refresh endpoint for immediate stats recalculation
      */
     @GetMapping("/refresh-stats/{date}")
     public ResponseEntity<Map<String, Object>> refreshStatsForDate(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {

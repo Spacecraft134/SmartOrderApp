@@ -93,8 +93,8 @@ export function KitchenDashboard() {
 
   const getAuthToken = () => {
     return isAdminView
-      ? localStorage.getItem("token")
-      : localStorage.getItem("employeeToken");
+      ? localStorage.getItem("accessToken")
+      : localStorage.getItem("employeeAccessToken");
   };
 
   const fetchOrders = async () => {
@@ -135,14 +135,11 @@ export function KitchenDashboard() {
     }
   };
 
-  // Set up auto-refresh every 15 seconds
   useEffect(() => {
-    fetchOrders(); // Initial fetch
+    fetchOrders();
 
-    // Set up interval
     refreshIntervalRef.current = setInterval(fetchOrders, 15000);
 
-    // Clean up interval on unmount
     return () => {
       if (refreshIntervalRef.current) {
         clearInterval(refreshIntervalRef.current);
@@ -168,7 +165,7 @@ export function KitchenDashboard() {
       });
 
       toast.success("Order started!");
-      fetchOrders(); // Refresh orders after status change
+      fetchOrders();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to start order");
 
@@ -189,7 +186,6 @@ export function KitchenDashboard() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      toast.success("Order marked READY for pickup!");
       fetchOrders(); // Refresh orders after status change
     } catch (error) {
       toast.error("Failed to mark order ready");
@@ -228,7 +224,8 @@ export function KitchenDashboard() {
       if (!isAdminView) {
         await api.post("/api/employee/logout");
         localStorage.removeItem("employeeData");
-        localStorage.removeItem("employeeToken");
+        localStorage.removeItem("employeeAccessToken");
+        localStorage.removeItem("employeeRefreshToken");
         navigate("/employee/login");
       } else if (window.parent !== window) {
         window.parent.postMessage({ action: "closeModal" }, "*");

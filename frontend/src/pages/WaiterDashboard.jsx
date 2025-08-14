@@ -203,7 +203,6 @@ export function WaiterDashboard() {
         if (event.eventType === "READY") {
           setOrders((prev) => prev.filter((o) => o.id !== event.order.id));
           playNotification();
-          toast.success(`Order for Table ${event.order.tableNumber} is ready!`);
         }
       } catch (err) {
         console.error("Error parsing waiter order:", err);
@@ -219,7 +218,6 @@ export function WaiterDashboard() {
           setActiveTables((prev) =>
             prev.filter((t) => t !== event.tableNumber)
           );
-          toast.info(`Table ${event.tableNumber} session ended`);
         } else if (event.eventType === "SESSION_STARTED") {
           setActiveTables((prev) => [...new Set([...prev, event.tableNumber])]);
         }
@@ -288,17 +286,21 @@ export function WaiterDashboard() {
     }
 
     try {
-      const token = localStorage.getItem("employeeToken");
+      const token = localStorage.getItem("employeeAccessToken");
       if (!token) throw new Error("No token found");
 
-      await api.put(`/api/orders/${id}/progress`, null, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      await api.put(
+        `/api/orders/${id}/progress`,
+        { status: "CONFIRMED" },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       setOrders((prev) => prev.filter((order) => order.id !== id));
-      toast.success("Order confirmed and sent to kitchen");
     } catch (error) {
       if (error.response?.status === 401) {
         toast.error("Session expired. Please login again.");
@@ -368,7 +370,8 @@ export function WaiterDashboard() {
     try {
       await api.post("/api/employee/logout");
       localStorage.removeItem("employeeData");
-      localStorage.removeItem("employeeToken");
+      localStorage.removeItem("employeeRefreshToken");
+      localStorage.removeItem("employeeAccessToken");
       navigate("/employee/login");
     } catch (error) {
       toast.error("Logout failed. Please try again.");
