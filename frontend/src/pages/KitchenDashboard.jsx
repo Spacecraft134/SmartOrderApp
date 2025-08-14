@@ -2,9 +2,6 @@ import React, { useEffect, useState, useRef } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { motion, AnimatePresence } from "framer-motion";
-import notificationSound from "../assets/ding-101492.mp3";
-import SockJS from "sockjs-client";
-import { Client } from "@stomp/stompjs";
 import {
   FiCheck,
   FiClock,
@@ -56,11 +53,9 @@ export function KitchenDashboard() {
   const [orders, setOrders] = useState([]);
   const [expandedOrders, setExpandedOrders] = useState({});
   const [isLoading, setIsLoading] = useState(true);
-  const clientRef = useRef(null);
-  const audioRef = useRef(null);
   const navigate = useNavigate();
   const [userName, setUserName] = useState("Kitchen Staff");
-  const playedSoundOrders = useRef(new Set());
+  const refreshIntervalRef = useRef(null);
 
   const isAdminView = React.useMemo(() => {
     return (
@@ -68,18 +63,6 @@ export function KitchenDashboard() {
       window.parent !== window ||
       document.referrer.includes("admin")
     );
-  }, []);
-
-  useEffect(() => {
-    audioRef.current = new Audio(notificationSound);
-    audioRef.current.load();
-
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
   }, []);
 
   useEffect(() => {
@@ -107,15 +90,6 @@ export function KitchenDashboard() {
       }
     }
   }, [navigate, isAdminView]);
-
-  const playNotification = () => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch((e) => {
-        toast.info("New order received!");
-      });
-    }
-  };
 
   const getAuthToken = () => {
     return isAdminView
@@ -161,100 +135,20 @@ export function KitchenDashboard() {
     }
   };
 
+  // Set up auto-refresh every 15 seconds
   useEffect(() => {
-    fetchOrders();
+    fetchOrders(); // Initial fetch
 
-    const socket = new SockJS("http://localhost:8080/ws");
-    const stompClient = new Client({
-      webSocketFactory: () => socket,
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
-      onConnect: () => {
-        stompClient.subscribe("/topic/kitchen-orders", (message) => {
-          if (!message?.body) return;
+    // Set up interval
+    refreshIntervalRef.current = setInterval(fetchOrders, 15000);
 
-          try {
-            const event = JSON.parse(message.body);
-            const order = processOrderData(event.order);
-            if (!order) return;
-
-            setOrders((prev) => {
-              switch (event.eventType) {
-                case "DELETE":
-                case "COMPLETED":
-                  return prev.filter((o) => o.id !== order.id);
-
-                case "NEW_ORDER":
-                  if (!playedSoundOrders.current.has(order.id)) {
-                    playNotification();
-                    playedSoundOrders.current.add(order.id);
-                    toast.success(`New order from Table ${order.tableNumber}!`);
-                  }
-                  return [order, ...prev].sort(
-                    (a, b) => new Date(b.time) - new Date(a.time)
-                  );
-
-                case "STATUS_CHANGE":
-                  const existingIndex = prev.findIndex(
-                    (o) => o.id === order.id
-                  );
-                  if (existingIndex >= 0) {
-                    const updated = [...prev];
-                    updated[existingIndex] = order;
-                    return updated.sort(
-                      (a, b) => new Date(b.time) - new Date(a.time)
-                    );
-                  }
-                  return prev;
-
-                default:
-                  return prev;
-              }
-            });
-          } catch (error) {
-            console.error("Failed to process kitchen order:", error);
-          }
-        });
-
-        stompClient.subscribe("/topic/new-orders", (message) => {
-          if (!message?.body) return;
-
-          try {
-            const order = JSON.parse(message.body);
-            if (!playedSoundOrders.current.has(order.id)) {
-              playNotification();
-              playedSoundOrders.current.add(order.id);
-              toast.success(`New order from Table ${order.tableNumber}!`);
-
-              setOrders((prev) => {
-                if (!prev.some((o) => o.id === order.id)) {
-                  return [processOrderData(order), ...prev].sort(
-                    (a, b) => new Date(b.time) - new Date(a.time)
-                  );
-                }
-                return prev;
-              });
-            }
-          } catch (error) {
-            console.error("Failed to process new order:", error);
-          }
-        });
-      },
-      onStompError: (frame) => {
-        toast.error("Connection error. Trying to reconnect...");
-      },
-    });
-
-    stompClient.activate();
-    clientRef.current = stompClient;
-
+    // Clean up interval on unmount
     return () => {
-      if (clientRef.current) {
-        clientRef.current.deactivate();
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
       }
     };
-  }, [isAdminView]);
+  }, []);
 
   const startOrderProgress = async (id) => {
     try {
@@ -274,11 +168,7 @@ export function KitchenDashboard() {
       });
 
       toast.success("Order started!");
-      setOrders((prev) =>
-        prev.map((order) =>
-          order.id === id ? { ...order, statusOfOrder: "IN_PROGRESS" } : order
-        )
-      );
+      fetchOrders(); // Refresh orders after status change
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to start order");
 
@@ -300,7 +190,7 @@ export function KitchenDashboard() {
       });
 
       toast.success("Order marked READY for pickup!");
-      setOrders((prev) => prev.filter((order) => order.id !== id));
+      fetchOrders(); // Refresh orders after status change
     } catch (error) {
       toast.error("Failed to mark order ready");
 

@@ -186,9 +186,7 @@ export function WaiterDashboard() {
             return updated;
           } else {
             playNotification();
-            toast.info(
-              `New help request from Table ${updatedRequest.tableNumber}`
-            );
+
             return [...prev, updatedRequest];
           }
         });
@@ -243,7 +241,6 @@ export function WaiterDashboard() {
           event.order?.statusOfOrder === "WAITING_FOR_CONFIRMATION"
         ) {
           playNotification();
-          toast.info(`New order from Table ${event.order.tableNumber}`);
         }
       } catch (err) {
         console.error(`Error handling order update:`, err);
@@ -253,9 +250,7 @@ export function WaiterDashboard() {
     const playNotification = () => {
       if (audioRef.current) {
         audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(() => {
-          toast.info("New notification!");
-        });
+        audioRef.current.play().catch(() => {});
       }
     };
 
