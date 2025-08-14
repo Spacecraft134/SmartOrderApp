@@ -20,30 +20,44 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 
+/**
+ * Main security configuration class that defines authentication and authorization rules.
+ * Configures JWT authentication, CORS, CSRF protection, and endpoint security.
+ */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
 
+    /**
+     * Constructs a new SecurityConfig with required dependencies.
+     * @param jwtFilter JWT authentication filter
+     */
     public SecurityConfig(JwtFilter jwtFilter) {
         this.jwtFilter = jwtFilter;
     }
 
+    /**
+     * Configures the security filter chain.
+     * @param http HttpSecurity builder
+     * @return Configured SecurityFilterChain
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                // Public endpoints first — order matters!
+                // ADMIN DASHBOARD SPECIFIC ENDPOINTS
+                .requestMatchers(HttpMethod.GET, "/api/orders/daily/*").hasAnyAuthority("ROLE_ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/orders/top-items/*").hasAnyAuthority("ROLE_ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/orders/category-sales/*").hasAnyAuthority("ROLE_ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/orders/refresh-stats/**").hasAnyAuthority("ROLE_ADMIN")
+
+                // Public endpoints
                 .requestMatchers("/api/employee/login").permitAll()
                 .requestMatchers("/api/employee/verify-credentials").permitAll()
-
-                // Thank you content endpoints - FIXED ORDER
-                .requestMatchers(HttpMethod.GET, "/api/thank-you-content/restaurant/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/thank-you-content").hasAnyAuthority("ROLE_ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/thank-you-content/**").hasAnyAuthority("ROLE_ADMIN")
 
                 // Other public endpoints
                 .requestMatchers(
@@ -58,27 +72,27 @@ public class SecurityConfig {
                     "/api/orders/",
                     "/customerOrder/**",
                     "/thank-you/**",
-                   "/topic/**",
+                    "/topic/**",
                     "/app/**",
                     "/user/**",
                     "/api/orders/by-table/*",
-                   "/api/thank-you",
-                   "/api/thank-you/restaurant/**"
+                    "/api/thank-you",
+                    "/api/thank-you/restaurant/**"
                 ).permitAll()
 
-                // KITCHEN DASHBOARD SPECIFIC ENDPOINTS - Allow admin access
+                // KITCHEN DASHBOARD SPECIFIC ENDPOINTS
                 .requestMatchers(HttpMethod.GET, "/api/orders/kitchen-queue").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/orders/active").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/orders/ready").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN", "ROLE_WAITER")
                 .requestMatchers(HttpMethod.GET, "/api/orders/in-progress").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN")
 
-                // SPECIFIC ORDER ENDPOINTS FIRST (most specific patterns first!)
+                // ORDER ENDPOINTS
                 .requestMatchers(HttpMethod.GET, "/api/orders/pending").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN", "ROLE_KITCHEN")
                 .requestMatchers(HttpMethod.PUT, "/api/orders/*/progress").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN", "ROLE_KITCHEN")
                 .requestMatchers(HttpMethod.PUT, "/api/orders/*/ready").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN")
-                .requestMatchers(HttpMethod.POST, "/api/orders").permitAll() // Allow customers to place orders
+                .requestMatchers(HttpMethod.POST, "/api/orders").permitAll()
                 
-                // GENERAL ORDER ENDPOINTS (less specific patterns after specific ones)
+                // GENERAL ORDER ENDPOINTS
                 .requestMatchers(HttpMethod.GET, "/api/orders/**").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN", "ROLE_WAITER")
                 .requestMatchers(HttpMethod.GET, "/api/orders").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN", "ROLE_WAITER")
 
@@ -93,13 +107,13 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/help-requests/all-active-request").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/help-requests/**").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN")
 
-                // Protect all other employee endpoints (after specific endpoints)
+                // Employee endpoints
                 .requestMatchers("/api/employee/**").hasAnyAuthority("ROLE_WAITER", "ROLE_KITCHEN", "ROLE_ADMIN")
 
                 // Admin-only endpoints
                 .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
 
-                // Fallback: any other request requires authentication
+                // All other requests require authentication
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session
@@ -107,12 +121,9 @@ public class SecurityConfig {
             )
             .exceptionHandling(exception -> exception
                 .authenticationEntryPoint((request, response, authException) -> {
-                    System.out.println("Authentication failed for: " + request.getRequestURI() + " - " + authException.getMessage());
                     response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
                 })
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
-                    System.out.println("Access denied for: " + request.getRequestURI() + " - User authorities: " + 
-                        (response.getHeader("X-User-Authorities") != null ? response.getHeader("X-User-Authorities") : "Unknown"));
                     response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied");
                 })
             )
@@ -121,6 +132,10 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /**
+     * Configures CORS settings for the application.
+     * @return CorsConfigurationSource with allowed origins, methods, and headers
+     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
@@ -140,15 +155,29 @@ public class SecurityConfig {
         return source;
     }
 
+    /**
+     * Provides the password encoder implementation.
+     * @return BCryptPasswordEncoder with strength 12
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(12);
     }
 
+    /**
+     * Provides the authentication manager.
+     * @param config AuthenticationConfiguration
+     * @return Configured AuthenticationManager
+     */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
+    
+    /**
+     * Configures WebSecurity to ignore WebSocket endpoints.
+     * @param web WebSecurity instance
+     */
     public void configure(WebSecurity web) throws Exception {
         web.ignoring().requestMatchers("/ws/**", "/topic/**", "/app/**");
     }

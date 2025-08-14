@@ -19,31 +19,51 @@ import org.springframework.web.bind.annotation.RestController;
 import com.smartOrder.restaurant_managment_app.Controllers.CustomExceptions.NoRequestFoundException;
 import com.smartOrder.restaurant_managment_app.Models.HelpRequest;
 import com.smartOrder.restaurant_managment_app.repository.HelpRequestRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+/**
+ * REST controller for managing customer help requests.
+ * Handles creation, retrieval, and resolution of help requests
+ * with real-time WebSocket notifications to staff.
+ * 
+ */
 @RestController
 @CrossOrigin
 @RequestMapping("/api/help-requests")
 public class HelpRequestController {
   
     private HelpRequestRepository helpRequestRepo;
-    private static final Logger log = LoggerFactory.getLogger(HelpRequestController.class);
     
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
-
     @Autowired
     private TableController tableController;
 
+    /**
+     * Constructs HelpRequestController with required repository.
+     *
+     * @param helpRequestRepo the help request repository
+     */
     public HelpRequestController(HelpRequestRepository helpRequestRepo) {
         this.helpRequestRepo = helpRequestRepo;
     }
+
+    /**
+     * Retrieves all active (unresolved) help requests ordered by request time.
+     *
+     * @return List of active help requests
+     */
     @GetMapping("/all-active-request")
     public List<HelpRequest> getAllActiveRequests() {
         return helpRequestRepo.findByResolvedFalseOrderByRequestTimeDesc();
     }
     
+    /**
+     * Creates a new help request from a customer.
+     * Sets default reason if none provided and broadcasts to staff.
+     *
+     * @param helpRequest the help request details
+     * @return the saved help request
+     */
     @PostMapping()
     public HelpRequest createHelpRequest(@RequestBody HelpRequest helpRequest) {
         if(helpRequest.getReason() == null || helpRequest.getReason().isEmpty()) {
@@ -63,6 +83,14 @@ public class HelpRequestController {
         return saved;
     }
     
+    /**
+     * Deletes a help request and handles special processing for bill requests.
+     * If the request is for a bill, it triggers session ending process.
+     *
+     * @param id the help request ID to delete
+     * @return ResponseEntity with no content
+     * @throws NoRequestFoundException if request not found
+     */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteRequest(@PathVariable Long id) {
         Optional<HelpRequest> requestOpt = helpRequestRepo.findById(id);
@@ -75,7 +103,6 @@ public class HelpRequestController {
         if ("Need bill".equalsIgnoreCase(request.getReason())) {
             tableController.endSession(request.getTableNumber());
             
-            // Immediate notification to customer
             messagingTemplate.convertAndSend(
                 "/topic/session-ended/" + request.getTableNumber(),
                 Map.of(

@@ -8,17 +8,18 @@ const api = axios.create({
     Pragma: "no-cache",
   },
   withCredentials: true,
-  params: {
-    t: Date.now(),
-  },
 });
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    const token =
+      localStorage.getItem("accessToken") ||
+      localStorage.getItem("employeeAccessToken");
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
     return config;
   },
   (error) => {

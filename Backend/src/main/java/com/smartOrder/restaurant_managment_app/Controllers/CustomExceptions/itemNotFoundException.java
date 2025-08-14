@@ -3,9 +3,29 @@ package com.smartOrder.restaurant_managment_app.Controllers.CustomExceptions;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
-@ResponseStatus(code= HttpStatus.NOT_FOUND)
+/**
+ * Custom exception thrown when a requested menu item is not found.
+ * Automatically returns HTTP 404 (Not Found) status when thrown.
+ */
+@ResponseStatus(code = HttpStatus.NOT_FOUND)
 public class itemNotFoundException extends RuntimeException {
-  public itemNotFoundException(String message) {
-    super(message);
-  }
+
+    /**
+     * Constructs a new ItemNotFoundException with the specified detail message.
+     *
+     * @param message the detail message explaining why the item was not found
+     */
+    public itemNotFoundException(String message) {
+        super(message);
+    }
+
+    /**
+     * Constructs a new ItemNotFoundException with the specified detail message and cause.
+     *
+     * @param message the detail message explaining why the item was not found
+     * @param cause the cause of the exception
+     */
+    public itemNotFoundException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

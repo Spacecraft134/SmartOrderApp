@@ -22,50 +22,58 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import com.smartOrder.restaurant_managment_app.Models.RefreshToken;
 import com.smartOrder.restaurant_managment_app.Models.Restaurant;
 import com.smartOrder.restaurant_managment_app.Models.Users;
 import com.smartOrder.restaurant_managment_app.repository.RestaurantRepository;
 import com.smartOrder.restaurant_managment_app.repository.UserRepo;
 import com.smartOrder.restaurant_managment_app.services.JWTService;
 import com.smartOrder.restaurant_managment_app.services.MyUserDetailsService;
+import com.smartOrder.restaurant_managment_app.services.RefreshTokenService;
 import com.smartOrder.restaurant_managment_app.services.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+/**
+ * REST controller for user management and authentication.
+ * Handles admin registration, user login/logout, token refresh,
+ * and CRUD operations for restaurant users.
+ * 
+ */
 @RestController
 public class UserController {
 
     @Autowired
     private UserService userService;
-
     @Autowired
     private JWTService jwtService;
-
     @Autowired
     private AuthenticationManager authenticationManager;
-
     @Autowired
     private MyUserDetailsService userDetailsService;
-
     @Autowired
     private RestaurantRepository restaurantRepository;
-
     @Autowired
     private UserRepo userRepo;
-
     @Autowired
     private PasswordEncoder passwordEncoder;
+    @Autowired
+    private RefreshTokenService refreshTokenService;
 
-    // =======================
-    // Admin registration + restaurant creation
-    // =======================
+    /**
+     * Registers a new admin user and creates/associates restaurant.
+     * Creates a restaurant if it doesn't exist for the given code.
+     *
+     * @param restaurantCode the unique restaurant code
+     * @param user the admin user details
+     * @return ResponseEntity with registration result and JWT token
+     */
     @PostMapping("/register-admin/{restaurantCode}")
     public ResponseEntity<?> registerAdmin(
         @PathVariable String restaurantCode,
         @RequestBody Users user) {
 
         try {
-            // Check if restaurant exists, or create it
             Restaurant restaurant = restaurantRepository.findByCode(restaurantCode)
                 .orElseGet(() -> {
                     Restaurant newRestaurant = new Restaurant();
@@ -74,12 +82,10 @@ public class UserController {
                     return restaurantRepository.save(newRestaurant);
                 });
 
-            // Check if admin exists for this restaurant
             if (userRepo.existsByRestaurantIdAndRole(restaurant.getId(), Users.Role.ADMIN)) {
                 return ResponseEntity.badRequest().body("Restaurant already has an admin");
             }
 
-            // Create admin user
             user.setRestaurantId(restaurant.getId());
             user.setRole(Users.Role.ADMIN);
             user.setPassword(passwordEncoder.encode(user.getPassword()));
@@ -103,9 +109,12 @@ public class UserController {
         }
     }
 
-    // =======================
-    // Login
-    // =======================
+    /**
+     * Authenticates an admin user and returns JWT tokens.
+     *
+     * @param user the login credentials
+     * @return ResponseEntity with access token, refresh token, and user details
+     */
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Users user) {
         try {
@@ -115,14 +124,21 @@ public class UserController {
 
             Users authenticatedUser = userService.findByUsername(user.getUsername());
             UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUsername());
-            String token = jwtService.generateToken(userDetails);
+            String accessToken = jwtService.generateToken(userDetails);
+            
+            RefreshToken refreshToken = refreshTokenService.createRefreshToken(authenticatedUser.getId());
 
             return ResponseEntity.ok(Map.of(
-                "token", token,
-                "username", authenticatedUser.getUsername(),
-                "role", authenticatedUser.getRole().name(),
-                "name", authenticatedUser.getName(),
-                "restaurantId", authenticatedUser.getRestaurantId()
+                "accessToken", accessToken,
+                "refreshToken", refreshToken.getToken(),
+                "tokenType", "Bearer",
+                "expiresIn", 3600,
+                "user", Map.of(
+                    "username", authenticatedUser.getUsername(),
+                    "role", authenticatedUser.getRole().name(),
+                    "name", authenticatedUser.getName(),
+                    "restaurantId", authenticatedUser.getRestaurantId()
+                )
             ));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
@@ -130,45 +146,46 @@ public class UserController {
             );
         }
     }
-    
+
+    /**
+     * Authenticates an employee (waiter or kitchen staff) and returns JWT tokens.
+     *
+     * @param user the login credentials
+     * @return ResponseEntity with access token, refresh token, and user details
+     */
     @PostMapping("/api/employee/login")
     public ResponseEntity<?> employeeLogin(@RequestBody Users user) {
         try {
-            // 1. First check if user exists
             Users dbUser = userService.findByUsername(user.getUsername());
             if (dbUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "Invalid username or password"));
             }
 
-            // 2. Check if user is active
             if (!dbUser.isActive()) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("message", "Account is inactive"));
             }
 
-            // 3. Authenticate
             Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                    user.getUsername(), 
-                    user.getPassword()
-                )
+                new UsernamePasswordAuthenticationToken(user.getUsername(), user.getPassword())
             );
 
-            // 4. Verify role
-            if (dbUser.getRole() != Users.Role.WAITER && 
-                dbUser.getRole() != Users.Role.KITCHEN) {
+            if (dbUser.getRole() != Users.Role.WAITER && dbUser.getRole() != Users.Role.KITCHEN) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("message", "Unauthorized role"));
             }
 
-            // 5. Generate token
             UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUsername());
-            String token = jwtService.generateToken(userDetails);
+            String accessToken = jwtService.generateToken(userDetails);
+            
+            RefreshToken refreshToken = refreshTokenService.createRefreshToken(dbUser.getId());
 
-            // 6. Return success response
             return ResponseEntity.ok(Map.of(
-                "token", token,
+                "accessToken", accessToken,
+                "refreshToken", refreshToken.getToken(),
+                "tokenType", "Bearer",
+                "expiresIn", 3600, 
                 "user", Map.of(
                     "username", dbUser.getUsername(),
                     "role", dbUser.getRole().name(),
@@ -186,38 +203,100 @@ public class UserController {
         }
     }
     
+    /**
+     * Refreshes an access token using a valid refresh token.
+     *
+     * @param request Map containing the refresh token
+     * @return ResponseEntity with new access and refresh tokens
+     */
+    @PostMapping("/api/auth/refresh")
+    public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> request) {
+        String refreshToken = request.get("refreshToken");
+        
+        if (refreshToken == null || refreshToken.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(
+                Map.of("message", "Refresh token is required")
+            );
+        }
 
+        try {
+            Users user = refreshTokenService.getUserFromRefreshToken(refreshToken);
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    Map.of("message", "Invalid refresh token")
+                );
+            }
 
+            UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUsername());
+            String newAccessToken = jwtService.generateToken(userDetails);
+            
+            RefreshToken newRefreshToken = refreshTokenService.createRefreshToken(user.getId());
 
-    // =======================
-    // Logout
-    // =======================
+            return ResponseEntity.ok(Map.of(
+                "accessToken", newAccessToken,
+                "refreshToken", newRefreshToken.getToken(),
+                "tokenType", "Bearer",
+                "expiresIn", 3600
+            ));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                Map.of("message", "Token refresh failed: " + e.getMessage())
+            );
+        }
+    }
+
+    /**
+     * Logs out an admin user and invalidates their refresh token.
+     *
+     * @param request the HTTP request
+     * @param response the HTTP response
+     * @param requestBody optional request body
+     * @return ResponseEntity indicating logout success
+     */
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
+    public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response, 
+                                   @RequestBody(required = false) Map<String, String> requestBody) {
         try {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth != null) {
+                String username = auth.getName();
+                Users user = userService.findByUsername(username);
+                if (user != null) {
+                    refreshTokenService.deleteByUserId(user.getId());
+                }
                 new SecurityContextLogoutHandler().logout(request, response, auth);
             }
-            return ResponseEntity.ok().body(Map.of(
-                "message", "Logout successful"
-            ));
+            return ResponseEntity.ok().body(Map.of("message", "Logout successful"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                 Map.of("message", "Logout failed: " + e.getMessage())
             );
         }
     }
+
+    /**
+     * Logs out an employee user and invalidates their refresh token.
+     *
+     * @param request the HTTP request
+     * @param response the HTTP response
+     * @param requestBody optional request body
+     * @return ResponseEntity indicating logout success
+     */
     @PostMapping("/api/employee/logout")
-    public ResponseEntity<?> employeeLogout(HttpServletRequest request, HttpServletResponse response) {
+    public ResponseEntity<?> employeeLogout(HttpServletRequest request, HttpServletResponse response,
+                                           @RequestBody(required = false) Map<String, String> requestBody) {
         try {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth != null) {
+                String username = auth.getName();
+                Users user = userService.findByUsername(username);
+                if (user != null) {
+                    refreshTokenService.deleteByUserId(user.getId());
+                }
                 new SecurityContextLogoutHandler().logout(request, response, auth);
             }
-            return ResponseEntity.ok().body(Map.of(
-                "message", "Employee logout successful"
-            ));
+            return ResponseEntity.ok().body(Map.of("message", "Employee logout successful"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                 Map.of("message", "Employee logout failed: " + e.getMessage())
@@ -225,9 +304,12 @@ public class UserController {
         }
     }
 
-    // =======================
-    // Get users by restaurant (admin only)
-    // =======================
+    /**
+     * Retrieves all users for a specific restaurant (admin only).
+     *
+     * @param restaurantId the restaurant ID
+     * @return ResponseEntity with list of users or error message
+     */
     @GetMapping("/restaurant/{restaurantId}")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> getUsersByRestaurant(@PathVariable Integer restaurantId) {
@@ -245,7 +327,12 @@ public class UserController {
         }
     }
 
-    // Get admin for restaurant
+    /**
+     * Retrieves the admin user for a specific restaurant.
+     *
+     * @param restaurantId the restaurant ID
+     * @return ResponseEntity with admin user or error message
+     */
     @GetMapping("/restaurant/{restaurantId}/admin")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> getAdminForRestaurant(@PathVariable Integer restaurantId) {
@@ -262,7 +349,12 @@ public class UserController {
         }
     }
 
-    // Get waiters for restaurant
+    /**
+     * Retrieves all waiter users for a specific restaurant.
+     *
+     * @param restaurantId the restaurant ID
+     * @return ResponseEntity with list of waiters
+     */
     @GetMapping("/restaurant/{restaurantId}/waiters")
     @PreAuthorize("hasAnyAuthority('ADMIN', 'WAITER')")
     public ResponseEntity<?> getWaitersByRestaurant(@PathVariable Integer restaurantId) {
@@ -275,7 +367,12 @@ public class UserController {
         }
     }
 
-    // Get kitchen staff for restaurant
+    /**
+     * Retrieves all kitchen staff for a specific restaurant.
+     *
+     * @param restaurantId the restaurant ID
+     * @return ResponseEntity with list of kitchen staff
+     */
     @GetMapping("/restaurant/{restaurantId}/kitchen")
     @PreAuthorize("hasAnyAuthority('ADMIN', 'KITCHEN')")
     public ResponseEntity<?> getKitchenStaffByRestaurant(@PathVariable Integer restaurantId) {
@@ -288,13 +385,19 @@ public class UserController {
         }
     }
 
+    /**
+     * Creates a new employee user (admin only).
+     *
+     * @param user the employee details
+     * @param auth the current authentication context
+     * @return ResponseEntity with created employee and JWT token
+     */
     @PostMapping("/register-employee")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> registerEmployee(
             @RequestBody Users user,
             Authentication auth) {
         try {
-            // Get authenticated admin user
             String adminUsername = auth.getName();
             Users admin = userService.findByUsername(adminUsername);
 
@@ -303,10 +406,8 @@ public class UserController {
                     .body(Map.of("message", "Only admins can create employees."));
             }
 
-            // Set employee's restaurant ID to match admin's restaurant
             user.setRestaurantId(admin.getRestaurantId());
 
-            // Validate role
             if (user.getRole() != Users.Role.WAITER && user.getRole() != Users.Role.KITCHEN) {
                 return ResponseEntity.badRequest()
                     .body(Map.of("message", "Role must be WAITER or KITCHEN"));
@@ -315,7 +416,6 @@ public class UserController {
             user.setActive(true);
             Users savedEmployee = userService.createUser(user);
 
-            // Generate token for the new employee
             UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUsername());
             String token = jwtService.generateToken(userDetails);
 
@@ -330,12 +430,14 @@ public class UserController {
             );
         }
     }
-    
-    
 
-    // =======================
-    // Toggle user status (admin only)
-    // =======================
+    /**
+     * Toggles the active status of a user (admin only).
+     *
+     * @param userId the user ID
+     * @param request Map containing the new active status
+     * @return ResponseEntity with updated user
+     */
     @PatchMapping("/api/users/{userId}/status")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> toggleUserStatus(
@@ -358,9 +460,13 @@ public class UserController {
         }
     }
 
-    // =======================
-    // Delete user (admin only)
-    // =======================
+    /**
+     * Deletes a user account (admin only).
+     * Prevents admins from deleting their own account.
+     *
+     * @param userId the user ID to delete
+     * @return ResponseEntity indicating success or error
+     */
     @DeleteMapping("/{userId}")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> deleteUser(@PathVariable int userId) {
@@ -387,6 +493,13 @@ public class UserController {
         }
     }
     
+    /**
+     * Updates user information (admin only).
+     *
+     * @param userId the user ID to update
+     * @param userUpdates the updated user data
+     * @return ResponseEntity with updated user
+     */
     @PutMapping("/api/users/{userId}")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> updateUser(
@@ -400,8 +513,4 @@ public class UserController {
                 .body("Error updating user: " + e.getMessage());
         }
     }
-    
-    
-    
-    
 }

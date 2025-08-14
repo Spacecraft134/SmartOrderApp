@@ -6,47 +6,42 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 
+/**
+ * Represents a dining table session tracking active sessions and billing status.
+ */
 @Entity
 public class TableSession {
   
-  @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
-  
-  @Column(unique = true)
-  private String tableNumber;
-  
-  private boolean sessionActive = true;
-  private boolean billProcessed= false;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(unique = true)
+    private String tableNumber;
+    
+    private boolean sessionActive = true;
+    private boolean billProcessed = false;
 
+    // Getters and setters with Javadoc comments
+    public String getTableNumber() { return tableNumber; }
+    public boolean isSessionActive() { return sessionActive; }
+    public boolean isBillProcessed() { return billProcessed; }
 
-  public String getTableNumber() {
-    return tableNumber;
-  }
+    public void setTableNumber(String tableNumber) { 
+        this.tableNumber = tableNumber; 
+    }
+    
+    public void setSessionActive(boolean sessionActive) { 
+        this.sessionActive = sessionActive; 
+    }
+    
+    public void setBillProcessed(boolean billProcessed) { 
+        this.billProcessed = billProcessed; 
+    }
 
-  public boolean isSessionActive() {
-    return sessionActive;
-  }
-
-  public void setTableNumber(String tableNumber) {
-    this.tableNumber = tableNumber;
-  }
-
-  public void setSessionActive(boolean sessionActive) {
-    this.sessionActive = sessionActive;
-  }
-
-  public boolean isBillProcessed() {
-    return billProcessed;
-  }
-
-  public void setBillProcessed(boolean billProcessed) {
-    this.billProcessed = billProcessed;
-  }
-
-  @Override
-  public String toString() {
-    return "TableSession [id=" + id + ", tableNumber=" + tableNumber + ", sessionActive="
-        + sessionActive + ", billProcessed=" + billProcessed + "]";
-  }
+    @Override
+    public String toString() {
+        return "TableSession [id=" + id + ", tableNumber=" + tableNumber 
+            + ", sessionActive=" + sessionActive + ", billProcessed=" + billProcessed + "]";
+    }
 }

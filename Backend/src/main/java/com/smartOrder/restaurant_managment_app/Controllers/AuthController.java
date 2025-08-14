@@ -16,9 +16,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * REST controller for authentication-related operations.
+ * Handles JWT token validation, user information retrieval, 
+ * and password reset functionality.
+ * 
+ */
 @RestController
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = "http://localhost:5173")
@@ -27,11 +32,6 @@ public class AuthController {
     private final JWTService jwtService;
     private final MyUserDetailsService userDetailsService;
     
-    public AuthController(JWTService jwtService, MyUserDetailsService userDetailsService) {
-        this.jwtService = jwtService;
-        this.userDetailsService = userDetailsService;
-    }
-    
     @Autowired
     private PasswordEncoder passwordEncoder;
     @Autowired
@@ -39,6 +39,23 @@ public class AuthController {
     @Autowired
     private EmailService emailService;
 
+    /**
+     * Constructs AuthController with required dependencies.
+     *
+     * @param jwtService the JWT service for token operations
+     * @param userDetailsService the user details service for authentication
+     */
+    public AuthController(JWTService jwtService, MyUserDetailsService userDetailsService) {
+        this.jwtService = jwtService;
+        this.userDetailsService = userDetailsService;
+    }
+
+    /**
+     * Validates a JWT token from the Authorization header.
+     *
+     * @param authHeader the Authorization header containing the Bearer token
+     * @return ResponseEntity with validation result and user information
+     */
     @GetMapping("/validate")
     public ResponseEntity<?> validateToken(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -75,17 +92,20 @@ public class AuthController {
         }
     }
     
+    /**
+     * Retrieves information about the currently authenticated user.
+     *
+     * @param authHeader the Authorization header containing the Bearer token
+     * @return ResponseEntity with current user's username and roles
+     */
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser(@RequestHeader("Authorization") String authHeader) {
         try {
-            // Extract token from header
             String token = authHeader.substring(7);
             String username = jwtService.extractUserName(token);
             
-            // Load user details
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
             
-            // Return user information
             return ResponseEntity.ok().body(Map.of(
                 "username", username,
                 "roles", userDetails.getAuthorities().stream()
@@ -99,6 +119,11 @@ public class AuthController {
         }
     }
     
+    /**
+     * Checks if an admin user exists in the system.
+     *
+     * @return ResponseEntity indicating whether an admin exists
+     */
     @GetMapping("/check-admin-exists")
     public ResponseEntity<?> checkAdminExists() {
         try {
@@ -114,6 +139,14 @@ public class AuthController {
         }
     }
 
+    /**
+     * Initiates a password reset request for a user.
+     * Sends a reset email if the user exists, but always returns success
+     * to prevent email enumeration attacks.
+     *
+     * @param request Map containing the email address
+     * @return ResponseEntity with success message regardless of email existence
+     */
     @PostMapping("/forgot-password")
     public ResponseEntity<?> requestPasswordReset(@RequestBody Map<String, String> request) {
         String email = request.get("email");
@@ -121,20 +154,17 @@ public class AuthController {
         try {
             Users user = userRepo.findByUsername(email);
             if (user == null) {
-                // Return success even if email doesn't exist (security best practice)
                 return ResponseEntity.ok().body(Map.of(
                     "success", true,
                     "message", "If the email exists, a reset link has been sent"
                 ));
             }
 
-            // Generate reset token (valid for 1 hour)
             String resetToken = UUID.randomUUID().toString();
             user.setResetToken(resetToken);
             user.setResetTokenExpiry(LocalDateTime.now().plusHours(1));
             userRepo.save(user);
 
-            // Send email with reset link
             String resetUrl = "http://localhost:5173/reset-password?token=" + resetToken;
             emailService.sendSimpleMessage(
                 email,
@@ -149,11 +179,6 @@ public class AuthController {
             ));
             
         } catch (Exception e) {
-            // Log the actual error for debugging but don't expose it to client
-            System.err.println("Password reset error: " + e.getMessage());
-            e.printStackTrace();
-            
-            // Return a generic success message to prevent email enumeration
             return ResponseEntity.ok().body(Map.of(
                 "success", true,
                 "message", "If the email exists, a reset link has been sent"
@@ -161,6 +186,12 @@ public class AuthController {
         }
     }
 
+    /**
+     * Resets a user's password using a valid reset token.
+     *
+     * @param request Map containing the reset token and new password
+     * @return ResponseEntity indicating success or failure of password reset
+     */
     @PostMapping("/reset-password")
     public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
         String token = request.get("token");
@@ -169,7 +200,6 @@ public class AuthController {
         try {
             Users user = userRepo.findByResetToken(token);
             
-            // Check if token exists and is not expired
             if (user == null || user.getResetTokenExpiry() == null || 
                 user.getResetTokenExpiry().isBefore(LocalDateTime.now())) {
                 return ResponseEntity.badRequest().body(Map.of(
@@ -178,7 +208,6 @@ public class AuthController {
                 ));
             }
 
-            // Update password and clear token
             user.setPassword(passwordEncoder.encode(newPassword));
             user.setResetToken(null);
             user.setResetTokenExpiry(null);
@@ -190,9 +219,6 @@ public class AuthController {
             ));
             
         } catch (Exception e) {
-            System.err.println("Reset password error: " + e.getMessage());
-            e.printStackTrace();
-            
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                 "success", false,
                 "message", "An error occurred while resetting password"
@@ -200,6 +226,12 @@ public class AuthController {
         }
     }
     
+    /**
+     * Validates a password reset token to check if it's still valid.
+     *
+     * @param token the reset token to validate
+     * @return ResponseEntity indicating whether the token is valid
+     */
     @GetMapping("/validate-reset-token")
     public ResponseEntity<?> validateResetToken(@RequestParam String token) {
         try {
@@ -217,13 +249,9 @@ public class AuthController {
             );
             
         } catch (Exception e) {
-            System.err.println("Token validation error: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                 Map.of("valid", false, "message", "Error validating token")
             );
         }
     }
-    
- 
-    
 }

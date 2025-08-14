@@ -1,4 +1,10 @@
-import { createContext, useState, useContext, useEffect } from "react";
+import {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  useCallback,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../Utils/api";
 
@@ -11,12 +17,137 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  const clearAuth = () => {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("userData");
+    delete api.defaults.headers.common["Authorization"];
+    setUser(null);
+  };
+
+  const clearEmployeeAuth = () => {
+    localStorage.removeItem("employeeAccessToken");
+    localStorage.removeItem("employeeRefreshToken");
+    localStorage.removeItem("employeeData");
+    delete api.defaults.headers.common["Authorization"];
+    setUser(null);
+  };
+
+  const logout = useCallback(async () => {
+    try {
+      const endpoint =
+        user?.role === "ADMIN" ? "/logout" : "/api/employee/logout";
+      await api.post(endpoint);
+    } catch (error) {
+      // Silent error handling
+    }
+
+    clearAuth();
+    clearEmployeeAuth();
+
+    try {
+      new BroadcastChannel(AUTH_CHANNEL).postMessage({ type: "LOGOUT" });
+      new BroadcastChannel(EMPLOYEE_AUTH_CHANNEL).postMessage({
+        type: "EMPLOYEE_LOGOUT",
+      });
+    } catch (broadcastError) {
+      // Silent error handling
+    }
+
+    navigate("/employee/login");
+  }, [user?.role, navigate]);
+
+  const refreshToken = useCallback(async () => {
+    try {
+      const storedRefreshToken =
+        localStorage.getItem("refreshToken") ||
+        localStorage.getItem("employeeRefreshToken");
+
+      if (!storedRefreshToken) {
+        return null;
+      }
+
+      const response = await api.post("/api/auth/refresh", {
+        refreshToken: storedRefreshToken,
+      });
+
+      const { accessToken, refreshToken: newRefreshToken } = response.data;
+
+      const isEmployee =
+        localStorage.getItem("employeeAccessToken") ||
+        localStorage.getItem("employeeData");
+
+      if (isEmployee) {
+        localStorage.setItem("employeeAccessToken", accessToken);
+        localStorage.setItem("employeeRefreshToken", newRefreshToken);
+      } else {
+        localStorage.setItem("accessToken", accessToken);
+        localStorage.setItem("refreshToken", newRefreshToken);
+      }
+
+      api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+      return accessToken;
+    } catch (error) {
+      throw error;
+    }
+  }, []);
+
+  // Setup API interceptors
+  useEffect(() => {
+    const requestInterceptor = api.interceptors.request.use(
+      (config) => {
+        const token =
+          localStorage.getItem("accessToken") ||
+          localStorage.getItem("employeeAccessToken");
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => Promise.reject(error)
+    );
+
+    const responseInterceptor = api.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const originalRequest = error.config;
+
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true;
+
+          if (originalRequest.url?.includes("/api/auth/refresh")) {
+            logout();
+            return Promise.reject(error);
+          }
+
+          try {
+            const newToken = await refreshToken();
+            if (newToken) {
+              originalRequest.headers.Authorization = `Bearer ${newToken}`;
+              return api(originalRequest);
+            }
+          } catch (refreshError) {
+            logout();
+            return Promise.reject(refreshError);
+          }
+        }
+
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      api.interceptors.request.eject(requestInterceptor);
+      api.interceptors.response.eject(responseInterceptor);
+    };
+  }, [refreshToken, logout]);
+
   useEffect(() => {
     const initializeAuth = () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem("accessToken");
         const userData = localStorage.getItem("userData");
-        const employeeToken = localStorage.getItem("employeeToken");
+        const employeeToken = localStorage.getItem("employeeAccessToken");
         const employeeData = localStorage.getItem("employeeData");
 
         if (token && userData) {
@@ -71,97 +202,38 @@ export function AuthProvider({ children }) {
       }
     };
 
-    const authChannel = new BroadcastChannel(AUTH_CHANNEL);
-    const employeeAuthChannel = new BroadcastChannel(EMPLOYEE_AUTH_CHANNEL);
-
-    const handleMessage = (event) => {
-      switch (event.data.type) {
-        case "LOGOUT":
-          clearAuth();
-          break;
-        case "EMPLOYEE_LOGOUT":
-          clearEmployeeAuth();
-          break;
-        case "LOGIN":
-        case "EMPLOYEE_LOGIN":
-          setTimeout(initializeAuth, 100);
-          break;
-        default:
-          break;
-      }
-    };
-
-    const handleStorage = (event) => {
-      if (event.key === "token" && !event.newValue) {
-        clearAuth();
-      }
-      if (event.key === "employeeToken" && !event.newValue) {
-        clearEmployeeAuth();
-      }
-    };
-
-    authChannel.addEventListener("message", handleMessage);
-    employeeAuthChannel.addEventListener("message", handleMessage);
-    window.addEventListener("storage", handleStorage);
-
     initializeAuth();
-
-    return () => {
-      authChannel.removeEventListener("message", handleMessage);
-      employeeAuthChannel.removeEventListener("message", handleMessage);
-      window.removeEventListener("storage", handleStorage);
-      authChannel.close();
-      employeeAuthChannel.close();
-    };
   }, []);
-
-  const clearAuth = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("userData");
-    delete api.defaults.headers.common["Authorization"];
-    setUser(null);
-  };
-
-  const clearEmployeeAuth = () => {
-    localStorage.removeItem("employeeToken");
-    localStorage.removeItem("employeeData");
-    delete api.defaults.headers.common["Authorization"];
-    setUser(null);
-  };
 
   const login = async (credentials) => {
     try {
       const response = await api.post("/login", credentials);
 
-      if (response.data?.token) {
-        if (response.data.role !== "ADMIN") {
+      if (response.data?.accessToken) {
+        if (response.data.user?.role !== "ADMIN") {
           return { success: false, error: "Unauthorized role" };
         }
 
-        localStorage.removeItem("employeeToken");
+        localStorage.removeItem("employeeAccessToken");
+        localStorage.removeItem("employeeRefreshToken");
         localStorage.removeItem("employeeData");
 
-        const { token, username, role, name, restaurantId } = response.data;
-        const userData = {
-          name,
-          role,
-          email: username,
-          token,
-          restaurantId,
+        const { accessToken, refreshToken, user: userData } = response.data;
+        const userInfo = {
+          name: userData.name,
+          role: userData.role,
+          email: userData.username,
+          token: accessToken,
+          restaurantId: userData.restaurantId,
         };
 
-        localStorage.setItem("token", token);
-        localStorage.setItem("userData", JSON.stringify(userData));
-        api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-        setUser(userData);
+        localStorage.setItem("accessToken", accessToken);
+        localStorage.setItem("refreshToken", refreshToken);
+        localStorage.setItem("userData", JSON.stringify(userInfo));
+        api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+        setUser(userInfo);
 
-        try {
-          new BroadcastChannel(AUTH_CHANNEL).postMessage({ type: "LOGIN" });
-        } catch (broadcastError) {
-          // Silent error handling
-        }
-
-        return { success: true, user: userData, error: null };
+        return { success: true, user: userInfo, error: null };
       }
 
       return {
@@ -183,32 +255,26 @@ export function AuthProvider({ children }) {
     try {
       const response = await api.post("/api/employee/login", credentials);
 
-      if (response.data?.token && response.data?.user) {
-        localStorage.removeItem("token");
+      if (response.data?.accessToken && response.data?.user) {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
         localStorage.removeItem("userData");
 
-        const { token, user: userData } = response.data;
+        const { accessToken, refreshToken, user: userData } = response.data;
         const employeeData = {
           name: userData.name,
           role: userData.role,
           email: userData.username,
           username: userData.username,
-          token,
+          token: accessToken,
           restaurantId: userData.restaurantId,
         };
 
-        localStorage.setItem("employeeToken", token);
+        localStorage.setItem("employeeAccessToken", accessToken);
+        localStorage.setItem("employeeRefreshToken", refreshToken);
         localStorage.setItem("employeeData", JSON.stringify(employeeData));
-        api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+        api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
         setUser(employeeData);
-
-        try {
-          new BroadcastChannel(EMPLOYEE_AUTH_CHANNEL).postMessage({
-            type: "EMPLOYEE_LOGIN",
-          });
-        } catch (broadcastError) {
-          // Silent error handling
-        }
 
         return { success: true, user: employeeData, error: null };
       }
@@ -226,37 +292,13 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logout = async () => {
-    try {
-      const endpoint =
-        user?.role === "ADMIN" ? "/logout" : "/api/employee/logout";
-      await api.post(endpoint);
-    } catch (error) {
-      // Silent error handling
-    }
-
-    clearAuth();
-    clearEmployeeAuth();
-    delete api.defaults.headers.common["Authorization"];
-
-    try {
-      new BroadcastChannel(AUTH_CHANNEL).postMessage({ type: "LOGOUT" });
-      new BroadcastChannel(EMPLOYEE_AUTH_CHANNEL).postMessage({
-        type: "EMPLOYEE_LOGOUT",
-      });
-    } catch (broadcastError) {
-      // Silent error handling
-    }
-
-    navigate("/employee/login");
-  };
-
   const contextValue = {
     user,
     login,
     employeeLogin,
     logout,
     loading,
+    refreshToken,
   };
 
   return (

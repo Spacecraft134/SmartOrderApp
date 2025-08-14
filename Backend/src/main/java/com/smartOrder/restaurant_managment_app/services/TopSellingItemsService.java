@@ -39,14 +39,13 @@ public class TopSellingItemsService {
             for (OrderedItems item : order.getItems()) {
                 String name = item.getMenuItem().getName();
                 
-                // Use BigDecimal for precise currency calculations
                 BigDecimal itemPrice = BigDecimal.valueOf(item.getMenuItem().getPrice());
                 BigDecimal quantity = BigDecimal.valueOf(item.getQuantity());
                 BigDecimal revenue = itemPrice.multiply(quantity);
                 
                 itemStats.putIfAbsent(name, new HashMap<>(Map.of(
                         "name", name,
-                        "totalQuantity", 0, // Total items sold (not orders)
+                        "totalQuantity", 0,
                         "revenue", BigDecimal.ZERO,
                         "pricePerItem", itemPrice.setScale(2, RoundingMode.HALF_UP).doubleValue()
                 )));
@@ -57,12 +56,12 @@ public class TopSellingItemsService {
             }
         }
         
-        // Convert BigDecimal back to double for response
+     
         List<Map<String, Object>> result = new ArrayList<>();
         for (Map<String, Object> stat : itemStats.values()) {
             Map<String, Object> resultStat = new HashMap<>();
             resultStat.put("name", stat.get("name"));
-            resultStat.put("orders", stat.get("totalQuantity")); // This is actually total items sold
+            resultStat.put("orders", stat.get("totalQuantity")); 
             resultStat.put("pricePerItem", stat.get("pricePerItem"));
             
             BigDecimal revenue = (BigDecimal) stat.get("revenue");

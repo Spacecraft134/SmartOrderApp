@@ -60,13 +60,6 @@ export function AdminDashboard() {
         setAdminName(userName);
         const today = new Date().toLocaleDateString("en-CA");
 
-        const token = localStorage.getItem("token");
-        if (!token) {
-          setError("Session expired. Please login again.");
-          window.location.href = "/login";
-          return;
-        }
-
         const [dailyRes, topRes, categoryRes] = await Promise.all([
           api.get(`/api/orders/daily/${today}`),
           api.get(`/api/orders/top-items/${today}`),
@@ -91,8 +84,6 @@ export function AdminDashboard() {
       } catch (error) {
         if (error.response?.status === 403 || error.response?.status === 401) {
           setError("Session expired. Please login again.");
-          localStorage.removeItem("token");
-          window.location.href = "/login";
         } else {
           setError("Failed to load dashboard data. Please try again later.");
         }

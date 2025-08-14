@@ -16,23 +16,36 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * Service for JWT token generation and validation.
+ */
 @Service
 public class JWTService {
-
+    
     @Value("${jwt.secret}")
     private String secretKey;
-
+    
     @Value("${jwt.expiration}")
     private long expiration;
 
+    /**
+     * Generates a JWT token for the given user details.
+     */
     public String generateToken(UserDetails userDetails) {
-      Map<String, Object> claims = new HashMap<>();
-      // Remove manual ROLE_ prefix addition
-      claims.put("roles", userDetails.getAuthorities().stream()
-              .map(GrantedAuthority::getAuthority) // Keep authority as-is
-              .collect(Collectors.toList()));
-      return buildToken(claims, userDetails.getUsername());
-  }
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("roles", userDetails.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList()));
+        return buildToken(claims, userDetails.getUsername());
+    }
+
+    /**
+     * Generates a token with just the username.
+     */
+    public String generateTokenFromUsername(String username) {
+        Map<String, Object> claims = new HashMap<>();
+        return buildToken(claims, username);
+    }
 
     private String buildToken(Map<String, Object> claims, String subject) {
         return Jwts.builder()
@@ -71,11 +84,20 @@ public class JWTService {
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
     }
 
-    private boolean isTokenExpired(String token) {
+    public boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
 
     private Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
+    }
+
+    /**
+     * Checks if token will expire within 5 minutes.
+     */
+    public boolean willExpireSoon(String token) {
+        Date expiration = extractExpiration(token);
+        Date now = new Date();
+        return expiration.getTime() - now.getTime() < 300000;
     }
 }

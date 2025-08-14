@@ -26,6 +26,7 @@ import com.smartOrder.restaurant_managment_app.services.OrderService;  // NEW IM
 import com.smartOrder.restaurant_managment_app.services.SaleByCategoryService;
 import com.smartOrder.restaurant_managment_app.services.StatsCalculationService;
 import com.smartOrder.restaurant_managment_app.services.TopSellingItemsService;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * REST controller for managing orders and order-related operations.
@@ -115,6 +116,9 @@ public class OrderController {
         
         return saved;
     }
+    
+    
+    
 
     /**
      * Retrieves a specific order by ID.
@@ -255,16 +259,23 @@ public class OrderController {
         }
     }
     
-    /**
-     * Retrieves daily statistics for a specific date.
-     * ENHANCED: Now calculates fresh stats instead of reading cached data
-     */
     @GetMapping("/daily/{date}")
-    public Stats getStatsForDate(@PathVariable("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        // CHANGED: Always return fresh stats instead of cached
-        Stats freshStats = statsCalculationService.calculateStatsFromData(date);
-        System.out.println("📊 Fresh stats served for " + date + " - Revenue: $" + freshStats.getTodaysRevenue());
-        return freshStats;
+    public ResponseEntity<Stats> getStatsForDate(
+        @PathVariable("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+        HttpServletRequest request) {
+        
+        System.out.println("📊 GET request received for daily stats: " + date);
+        
+        try {
+            Stats freshStats = statsCalculationService.calculateStatsFromData(date);
+            System.out.println("📊 SUCCESS - Returning stats: " + freshStats);
+            return ResponseEntity.ok(freshStats);
+            
+        } catch (Exception e) {
+            System.out.println("📊 ERROR - Exception occurred: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
     
     /**
@@ -302,6 +313,7 @@ public class OrderController {
         return saleByCategoryService.calculateSalesByCategory(date);
     }
 
+   
     @MessageMapping("/orders/{tableNumber}/subscribe")
     public void subscribeToOrderUpdates(@DestinationVariable String tableNumber) {
         // Subscription handled automatically by Spring

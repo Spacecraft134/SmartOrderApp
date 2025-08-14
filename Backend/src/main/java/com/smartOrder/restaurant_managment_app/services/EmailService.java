@@ -4,6 +4,9 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
+/**
+ * Service for sending email notifications.
+ */
 @Service
 public class EmailService {
 
@@ -13,7 +16,12 @@ public class EmailService {
         this.mailSender = mailSender;
     }
 
- // In EmailService - update to match what your controller calls
+    /**
+     * Sends a simple email message.
+     * @param to Recipient email address
+     * @param subject Email subject
+     * @param text Email content
+     */
     public void sendSimpleMessage(String to, String subject, String text) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom("noreply@yourdomain.com");

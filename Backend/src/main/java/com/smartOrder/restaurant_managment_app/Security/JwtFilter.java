@@ -14,24 +14,39 @@ import com.smartOrder.restaurant_managment_app.services.JWTService;
 import com.smartOrder.restaurant_managment_app.services.MyUserDetailsService;
 import java.io.IOException;
 
+/**
+ * JWT authentication filter that processes incoming requests and validates JWT tokens.
+ * This filter is applied to all requests except the login endpoint.
+ */
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 
     private final JWTService jwtService;
     private final MyUserDetailsService userDetailsService;
 
+    /**
+     * Constructs a new JwtFilter with required dependencies.
+     * @param jwtService Service for JWT operations
+     * @param userDetailsService Service for loading user details
+     */
     public JwtFilter(JWTService jwtService, MyUserDetailsService userDetailsService) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
     }
 
+    /**
+     * Filters incoming requests to validate JWT tokens.
+     * @param request HTTP request
+     * @param response HTTP response
+     * @param filterChain Filter chain to continue processing
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
         String path = request.getRequestURI();
 
-        // Skip JWT validation for login endpoint (and any other public endpoints as needed)
+        // Skip JWT validation for login endpoint
         if (path.equals("/api/employee/login")) {
             filterChain.doFilter(request, response);
             return;
@@ -64,5 +79,4 @@ public class JwtFilter extends OncePerRequestFilter {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
         }
     }
-
 }
