@@ -165,7 +165,7 @@ public class AuthController {
             user.setResetTokenExpiry(LocalDateTime.now().plusHours(1));
             userRepo.save(user);
 
-            String resetUrl = "http://localhost:5173/reset-password?token=" + resetToken;
+            String resetUrl = "http://dine-flow.s3-website.us-east-2.amazonaws.com/reset-password?token=" + resetToken;
             emailService.sendSimpleMessage(
                 email,
                 "DineFlow: Password Reset Request",

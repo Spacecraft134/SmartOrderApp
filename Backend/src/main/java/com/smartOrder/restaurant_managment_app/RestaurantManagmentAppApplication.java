@@ -40,7 +40,7 @@ public class RestaurantManagmentAppApplication {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("http://localhost:5173")
+                        .allowedOrigins("http://dine-flow.s3-website.us-east-2.amazonaws.com")
                         .allowedMethods("*")
                         .allowCredentials(true);
             }

@@ -142,7 +142,9 @@ public class SecurityConfig {
         config.setAllowedOriginPatterns(List.of(
             "http://localhost:*",
             "http://127.0.0.1:*",
-            "http://[::1]:*"
+            "http://[::1]:*",
+            "http://13.58.52.22:3000",
+            "http://dine-flow.s3-website.us-east-2.amazonaws.com"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));

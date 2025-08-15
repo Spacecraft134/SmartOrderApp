@@ -22,7 +22,7 @@ export function CustomerOrdersList() {
     setLoading(true);
     try {
       const ordersRes = await axios.get(
-        `http://localhost:8080/api/orders/by-table/${tableNumber}`
+        `http://13.58.52.22:8080/api/orders/by-table/${tableNumber}`
       );
 
       let fetched = [];
@@ -52,7 +52,7 @@ export function CustomerOrdersList() {
   };
 
   const initWebSocket = () => {
-    const socket = new SockJS("http://localhost:8080/ws");
+    const socket = new SockJS("http://13.58.52.22:8080/ws");
     const stompClient = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
@@ -129,7 +129,7 @@ export function CustomerOrdersList() {
 
       try {
         const res = await axios.get(
-          `http://localhost:8080/api/tables/${tableNumber}/session-status`
+          `http://13.58.52.22:8080/api/tables/${tableNumber}/session-status`
         );
         setSessionActive(res.data);
       } catch (error) {

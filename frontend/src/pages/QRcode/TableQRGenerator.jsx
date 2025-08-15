@@ -6,7 +6,8 @@ import { SketchPicker } from "react-color";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function TableQRGenerator() {
-  const baseUrl = "http://localhost:5173/customerOrder/";
+  const baseUrl =
+    "http://dine-flow.s3-website.us-east-2.amazonaws.com/customerOrder/";
   const [numTables, setNumTables] = useState(10);
   const [generated, setGenerated] = useState(false);
   const [isCustomizing, setIsCustomizing] = useState(false);

@@ -7,7 +7,7 @@ import api from "../pages/Utils/api";
 const SignUpPage = () => {
   const [formData, setFormData] = useState({
     name: "",
-    email: "",
+    username: "",
     password: "",
     confirmPassword: "",
     restaurantName: "",
@@ -117,13 +117,15 @@ const SignUpPage = () => {
     setIsLoading(true);
 
     try {
-      const response = await api.post("/api/auth/register-admin", {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        restaurantName: formData.restaurantName,
-        restaurantCode: formData.restaurantCode,
-      });
+      const response = await api.post(
+        `/register-admin/${formData.restaurantCode}`,
+        {
+          name: formData.name,
+          username: formData.username,
+          password: formData.password,
+          restaurantName: formData.restaurantName,
+        }
+      );
 
       toast.success("Admin registration successful!");
       navigate("/admin", {
@@ -312,8 +314,8 @@ const SignUpPage = () => {
                 </label>
                 <input
                   type="email"
-                  name="email"
-                  value={formData.email}
+                  name="username"
+                  value={formData.username}
                   onChange={handleChange}
                   className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
                   placeholder="your@email.com"

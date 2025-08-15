@@ -50,7 +50,7 @@ export function CustomerOrder() {
   useEffect(() => {
     if (!tableID) return;
 
-    const socket = new SockJS("http://localhost:8080/ws");
+    const socket = new SockJS("http://13.58.52.22:8080/ws");
     const stompClient = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
@@ -100,7 +100,7 @@ export function CustomerOrder() {
   useEffect(() => {
     const loadMenu = async () => {
       try {
-        const res = await axios.get("http://localhost:8080/api/menu/public");
+        const res = await axios.get("http://13.58.52.22:8080/api/menu/public");
         setMenuItems(res.data);
       } catch (error) {
         toast.error("Failed to load menu: " + error.message);
@@ -181,7 +181,7 @@ export function CustomerOrder() {
 
     try {
       await axios.post(
-        `http://localhost:8080/api/tables/${tableID}/start-session`
+        `http://13.58.52.22:8080/api/tables/${tableID}/start-session`
       );
 
       const orderData = {
@@ -193,7 +193,7 @@ export function CustomerOrder() {
         })),
       };
 
-      await axios.post("http://localhost:8080/api/orders", orderData, {
+      await axios.post("http://13.58.52.22:8080/api/orders", orderData, {
         headers: {
           "Content-Type": "application/json",
         },
@@ -221,7 +221,7 @@ export function CustomerOrder() {
     setHelpRequestSending(true);
 
     axios
-      .post("http://localhost:8080/api/help-requests", {
+      .post("http://13.58.52.22:8080/api/help-requests", {
         tableNumber: tableID,
         reason: reason,
       })
@@ -466,7 +466,7 @@ export function CustomerOrder() {
                       src={
                         item.imageUrl.startsWith("http")
                           ? item.imageUrl
-                          : `http://localhost:8080${item.imageUrl}`
+                          : `http://13.58.52.22:8080${item.imageUrl}`
                       }
                       alt={item.name}
                       className={`w-full h-full object-cover ${
