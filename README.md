@@ -74,4 +74,4 @@ The system supports **role-based access**, ensuring each user sees only what the
 ## Demo / Portfolio Notice
 This project is a **demonstration of the Smart Order & Service System** built for my family’s restaurant.  
 All data shown is **fake**, and this deployment is for **portfolio or educational purposes only**.  
-**It is not a live ordering platform.**
+**It is not a live ordering platform for use. ONLY FOR MY RESTAURANT!!!**
