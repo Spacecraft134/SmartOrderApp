@@ -36,7 +36,7 @@ export function Setting() {
 
     try {
       const response = await fetch(
-        "http://13.58.52.22:8080/api/auth/forgot-password",
+        "http://3.145.210.221:8080/api/auth/forgot-password",
         {
           method: "POST",
           headers: {

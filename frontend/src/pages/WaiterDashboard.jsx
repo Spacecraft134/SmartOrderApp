@@ -97,7 +97,7 @@ export function WaiterDashboard() {
     if (loading) return;
 
     const connectWebSocket = () => {
-      const socket = new SockJS("http://13.58.52.22:8080/ws");
+      const socket = new SockJS("http://3.145.210.221:8080/ws");
       const stompClient = new Client({
         webSocketFactory: () => socket,
         reconnectDelay: 5000,

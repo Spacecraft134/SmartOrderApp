@@ -195,7 +195,7 @@ export default function MenuManager() {
       imageUrl: item.imageUrl || "",
     });
     setEditPreviewImage(
-      item.imageUrl ? `http://13.58.52.22:8080${item.imageUrl}` : null
+      item.imageUrl ? `http://3.145.210.221:8080${item.imageUrl}` : null
     );
     setEditImageFile(null);
   };
@@ -416,7 +416,7 @@ export default function MenuManager() {
                 {item.imageUrl && (
                   <div className="md:w-1/4">
                     <img
-                      src={`http://13.58.52.22:8080${item.imageUrl}`}
+                      src={`http://3.145.210.221:8080${item.imageUrl}`}
                       alt={item.name}
                       className="w-full h-48 object-cover"
                     />
